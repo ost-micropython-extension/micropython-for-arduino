@@ -1,0 +1,1251 @@
+/**
+ * VSCode Elements CSS
+ *
+ * Styles every native HTML element to automatically use
+ * the active VSCode theme colors via CSS variables.
+ *
+ * Drop this into any VSCode webview — no configuration needed.
+ * Colors will always match the user's current theme.
+ *
+ * Reference: https://code.visualstudio.com/api/references/theme-color
+ */
+
+/* ============================================================
+   Reset & Box Model
+============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ============================================================
+   Root / Body
+============================================================ */
+
+:root {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+body {
+  background-color: var(--vscode-sidebar-background);
+  color: var(--vscode-sidebar-foreground);
+  font-family: var(--vscode-font-family, "Segoe UI", system-ui, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  font-weight: var(--vscode-font-weight, 400);
+}
+
+/* ============================================================
+   Typography — Headings
+============================================================ */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--vscode-sidebar-foreground);
+  font-weight: 600;
+  line-height: 1.25;
+  margin-bottom: 0.5em;
+  margin-top: 1em;
+}
+
+h1 {
+  font-size: 2em;
+}
+h2 {
+  font-size: 1.5em;
+}
+h3 {
+  font-size: 1.25em;
+}
+h4 {
+  font-size: 1.1em;
+}
+h5 {
+  font-size: 1em;
+}
+h6 {
+  font-size: 0.9em;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* ============================================================
+   Typography — Body Text
+============================================================ */
+
+p {
+  color: var(--vscode-sidebar-foreground);
+  margin-bottom: 0.75em;
+}
+
+small {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+
+strong,
+b {
+  font-weight: 600;
+  color: var(--vscode-editor-foreground);
+}
+
+em,
+i {
+  font-style: italic;
+  color: var(--vscode-editor-foreground);
+}
+
+mark {
+  background-color: var(--vscode-editor-findMatchHighlightBackground);
+  color: var(--vscode-editor-foreground);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+del,
+s {
+  color: var(--vscode-disabledForeground);
+  text-decoration: line-through;
+}
+
+abbr[title] {
+  border-bottom: 1px dotted var(--vscode-descriptionForeground);
+  cursor: help;
+}
+
+/* ============================================================
+   Links
+============================================================ */
+
+a {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+a:hover,
+a:focus {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+  outline: none;
+}
+
+a:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ============================================================
+   Code & Preformatted Text
+============================================================ */
+
+code,
+kbd,
+samp {
+  font-family: var(
+    --vscode-editor-font-family,
+    "Cascadia Code",
+    "Consolas",
+    "Courier New",
+    monospace
+  );
+  font-size: var(--vscode-editor-font-size, 12px);
+  background-color: var(--vscode-textCodeBlock-background);
+  color: var(--vscode-textPreformat-foreground);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+kbd {
+  background-color: var(--vscode-keybindingLabel-background);
+  color: var(--vscode-keybindingLabel-foreground);
+  border: 1px solid var(--vscode-keybindingLabel-border);
+  border-bottom-color: var(--vscode-keybindingLabel-bottomBorder);
+  border-radius: 3px;
+  padding: 1px 6px;
+  box-shadow: inset 0 -1px 0 var(--vscode-keybindingLabel-bottomBorder);
+  font-size: 0.85em;
+}
+
+pre {
+  background-color: var(--vscode-textCodeBlock-background);
+  color: var(--vscode-textPreformat-foreground);
+  border-radius: 4px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  margin-bottom: 1em;
+  font-family: var(
+    --vscode-editor-font-family,
+    "Cascadia Code",
+    "Consolas",
+    monospace
+  );
+  font-size: var(--vscode-editor-font-size, 12px);
+  line-height: 1.5;
+  border: 1px solid var(--vscode-editorWidget-border, transparent);
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+/* ============================================================
+   Blockquote
+============================================================ */
+
+blockquote {
+  background-color: var(--vscode-textBlockQuote-background);
+  border-left: 4px solid var(--vscode-textBlockQuote-border);
+  color: var(--vscode-editor-foreground);
+  padding: 8px 16px;
+  margin: 1em 0;
+  border-radius: 0 4px 4px 0;
+}
+
+blockquote p {
+  margin-bottom: 0;
+}
+
+/* ============================================================
+   Lists
+============================================================ */
+
+ul,
+ol {
+  color: var(--vscode-editor-foreground);
+  padding-left: 1.5em;
+  margin-bottom: 0.75em;
+}
+
+li {
+  margin-bottom: 0.2em;
+}
+
+ul ul,
+ol ol,
+ul ol,
+ol ul {
+  margin-bottom: 0;
+}
+
+dl {
+  color: var(--vscode-editor-foreground);
+  margin-bottom: 0.75em;
+}
+
+dt {
+  font-weight: 600;
+  margin-top: 0.5em;
+}
+
+dd {
+  margin-left: 1.5em;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* ============================================================
+   Separators
+============================================================ */
+
+hr {
+  border: none;
+  border-top: 1px solid var(--vscode-textSeparator-foreground);
+  margin: 1em 0;
+  opacity: 0.6;
+}
+
+/* ============================================================
+   Buttons
+============================================================ */
+
+button,
+[type="button"],
+[type="submit"],
+[type="reset"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 2px;
+  padding: 4px 12px;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 400;
+  line-height: 1.6;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: background-color 0.1s ease;
+  outline: none;
+}
+
+button:hover,
+[type="button"]:hover,
+[type="submit"]:hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+button:focus-visible,
+[type="button"]:focus-visible,
+[type="submit"]:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+button:active,
+[type="button"]:active,
+[type="submit"]:active {
+  opacity: 0.9;
+}
+
+button:disabled,
+[type="button"]:disabled,
+[type="submit"]:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Secondary button — use class="secondary" */
+button.secondary {
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border-color: var(--vscode-button-border, transparent);
+}
+
+button.secondary:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* Icon button — use class="icon-button" */
+button.icon-button {
+  background: transparent;
+  color: var(--vscode-icon-foreground);
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+}
+
+button.icon-button:hover {
+  background-color: var(--vscode-toolbar-hoverBackground);
+  outline: 1px solid var(--vscode-toolbar-hoverOutline, transparent);
+}
+
+[type="reset"] {
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+[type="reset"]:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* ============================================================
+   Inputs — Text, Email, Password, Number, Search, URL, Tel
+============================================================ */
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="url"],
+input[type="tel"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="week"],
+input[type="color"],
+textarea {
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 2px;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.6;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.1s ease;
+  display: block;
+}
+
+input[type="text"]::placeholder,
+input[type="email"]::placeholder,
+input[type="password"]::placeholder,
+input[type="number"]::placeholder,
+input[type="search"]::placeholder,
+input[type="url"]::placeholder,
+input[type="tel"]::placeholder,
+textarea::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="url"]:focus,
+input[type="tel"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus,
+input[type="datetime-local"]:focus,
+input[type="month"]:focus,
+input[type="week"]:focus,
+textarea:focus {
+  border-color: var(--vscode-focusBorder);
+  outline: none;
+}
+
+input:disabled,
+textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Search input — remove native styling */
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+/* Number input — spinner styling */
+input[type="number"] {
+  background-color: var(
+    --vscode-settings-numberInputBackground,
+    var(--vscode-input-background)
+  );
+  color: var(
+    --vscode-settings-numberInputForeground,
+    var(--vscode-input-foreground)
+  );
+  border-color: var(
+    --vscode-settings-numberInputBorder,
+    var(--vscode-input-border, transparent)
+  );
+}
+
+/* Color input */
+input[type="color"] {
+  padding: 2px 4px;
+  height: 28px;
+  cursor: pointer;
+}
+
+/* ============================================================
+   Textarea
+============================================================ */
+
+textarea {
+  resize: vertical;
+  min-height: 80px;
+  padding: 6px 8px;
+}
+
+/* ============================================================
+   Select / Dropdown
+============================================================ */
+
+select {
+  background-color: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+  border: 1px solid var(--vscode-dropdown-border);
+  border-radius: 2px;
+  padding: 4px 24px 4px 8px;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.6;
+  width: 100%;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%23cccccc' d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 16px;
+  transition: border-color 0.1s ease;
+}
+
+select:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+select[multiple] {
+  background-image: none;
+  padding: 4px 8px;
+  height: auto;
+}
+
+/* ============================================================
+   Checkbox
+============================================================ */
+
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--vscode-checkbox-border);
+  border-radius: 2px;
+  background-color: var(--vscode-checkbox-background);
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+  margin: 0;
+  vertical-align: middle;
+  transition:
+    background-color 0.1s ease,
+    border-color 0.1s ease;
+}
+
+input[type="checkbox"]:checked {
+  background-color: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+}
+
+input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 1px;
+  width: 5px;
+  height: 8px;
+  border: 2px solid var(--vscode-button-foreground);
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+input[type="checkbox"]:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+input[type="checkbox"]:disabled {
+  background-color: var(--vscode-checkbox-disabled-background);
+  color: var(--vscode-checkbox-disabled-foreground);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input[type="checkbox"]:indeterminate {
+  background-color: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+}
+
+input[type="checkbox"]:indeterminate::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 5px;
+  width: 8px;
+  height: 2px;
+  background-color: var(--vscode-button-foreground);
+  border: none;
+  transform: none;
+}
+
+/* ============================================================
+   Radio Button
+============================================================ */
+
+input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--vscode-radio-inactiveBorder);
+  border-radius: 50%;
+  background-color: var(--vscode-radio-inactiveBackground);
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+  margin: 0;
+  vertical-align: middle;
+  transition:
+    background-color 0.1s ease,
+    border-color 0.1s ease;
+}
+
+input[type="radio"]:checked {
+  border-color: var(--vscode-radio-activeBorder);
+  background-color: var(--vscode-radio-activeBackground);
+}
+
+input[type="radio"]:checked::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--vscode-radio-activeForeground);
+}
+
+input[type="radio"]:hover:not(:checked) {
+  background-color: var(--vscode-radio-inactiveHoverBackground);
+}
+
+input[type="radio"]:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   Range / Slider
+============================================================ */
+
+input[type="range"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  background: var(--vscode-scrollbarSlider-background);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--vscode-button-background);
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.1s ease;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--vscode-button-background);
+  cursor: pointer;
+  border: none;
+}
+
+input[type="range"]:hover::-webkit-slider-thumb {
+  background: var(--vscode-button-hoverBackground);
+}
+
+input[type="range"]:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ============================================================
+   Labels
+============================================================ */
+
+label {
+  color: var(--vscode-editor-foreground);
+  font-size: inherit;
+  cursor: pointer;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ============================================================
+   Fieldset & Legend
+============================================================ */
+
+fieldset {
+  border: 1px solid
+    var(--vscode-editorWidget-border, var(--vscode-input-border));
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin-bottom: 1em;
+}
+
+legend {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+  font-weight: 600;
+  padding: 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================================
+   Tables
+============================================================ */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  font-size: inherit;
+  margin-bottom: 1em;
+}
+
+thead {
+  background-color: var(--vscode-sideBarSectionHeader-background);
+}
+
+th {
+  color: var(
+    --vscode-sideBarSectionHeader-foreground,
+    var(--vscode-editor-foreground)
+  );
+  font-weight: 600;
+  text-align: left;
+  padding: 6px 12px;
+  border-bottom: 1px solid
+    var(--vscode-tree-tableColumnsBorder, var(--vscode-editorGroup-border));
+  white-space: nowrap;
+}
+
+td {
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--vscode-editorGroup-border);
+  color: var(--vscode-editor-foreground);
+  vertical-align: top;
+}
+
+tbody tr:nth-child(odd) {
+  background-color: var(--vscode-tree-tableOddRowsBackground, transparent);
+}
+
+tbody tr:hover {
+  background-color: var(--vscode-list-hoverBackground);
+  color: var(--vscode-list-hoverForeground);
+}
+
+tfoot td {
+  font-weight: 600;
+  border-top: 1px solid
+    var(--vscode-tree-tableColumnsBorder, var(--vscode-editorGroup-border));
+  border-bottom: none;
+  color: var(--vscode-descriptionForeground);
+}
+
+caption {
+  caption-side: bottom;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+  text-align: center;
+  padding-top: 6px;
+}
+
+/* ============================================================
+   Details / Summary
+============================================================ */
+
+details {
+  background-color: var(--vscode-editor-background);
+  border: 1px solid
+    var(--vscode-editorWidget-border, var(--vscode-input-border, transparent));
+  border-radius: 4px;
+  margin-bottom: 0.5em;
+  overflow: hidden;
+}
+
+summary {
+  background-color: var(--vscode-sideBarSectionHeader-background);
+  color: var(--vscode-editor-foreground);
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.1s ease;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+summary::before {
+  content: "▶";
+  font-size: 0.7em;
+  color: var(--vscode-icon-foreground);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+summary:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+summary:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+details > *:not(summary) {
+  padding: 12px;
+}
+
+/* ============================================================
+   Dialog / Modal
+============================================================ */
+
+dialog {
+  background-color: var(--vscode-editorWidget-background);
+  color: var(--vscode-editor-foreground);
+  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-focusBorder));
+  border-radius: 4px;
+  padding: 0;
+  box-shadow: 0 4px 24px var(--vscode-widget-shadow);
+  max-width: min(90vw, 560px);
+  width: 100%;
+}
+
+dialog::backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+dialog > header {
+  background-color: var(--vscode-editorGroupHeader-tabsBackground);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vscode-editorWidget-border, transparent);
+  font-weight: 600;
+}
+
+dialog > main,
+dialog > section {
+  padding: 16px;
+}
+
+dialog > footer {
+  background-color: var(--vscode-editorGroupHeader-tabsBackground);
+  padding: 10px 16px;
+  border-top: 1px solid var(--vscode-editorWidget-border, transparent);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ============================================================
+   Progress
+============================================================ */
+
+progress {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  border: none;
+  border-radius: 2px;
+  background-color: var(--vscode-editorGroup-border);
+  overflow: hidden;
+}
+
+progress::-webkit-progress-bar {
+  background-color: var(--vscode-editorGroup-border);
+  border-radius: 2px;
+}
+
+progress::-webkit-progress-value {
+  background-color: var(--vscode-progressBar-background);
+  border-radius: 2px;
+  transition: width 0.2s ease;
+}
+
+progress::-moz-progress-bar {
+  background-color: var(--vscode-progressBar-background);
+  border-radius: 2px;
+}
+
+/* ============================================================
+   Meter
+============================================================ */
+
+meter {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 8px;
+  border: none;
+  border-radius: 4px;
+  background-color: var(--vscode-editorGroup-border);
+  overflow: hidden;
+}
+
+meter::-webkit-meter-bar {
+  background-color: var(--vscode-editorGroup-border);
+  border-radius: 4px;
+  border: none;
+}
+
+meter::-webkit-meter-optimum-value {
+  background-color: var(--vscode-testing-iconPassed, #89d185);
+  border-radius: 4px;
+}
+
+meter::-webkit-meter-suboptimum-value {
+  background-color: var(--vscode-charts-yellow, #d7ba7d);
+  border-radius: 4px;
+}
+
+meter::-webkit-meter-even-less-good-value {
+  background-color: var(--vscode-editorError-foreground, #f48771);
+  border-radius: 4px;
+}
+
+/* ============================================================
+   Images & Media
+============================================================ */
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 2px;
+}
+
+figure {
+  margin: 1em 0;
+}
+
+figcaption {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+  text-align: center;
+  margin-top: 6px;
+}
+
+video,
+audio {
+  max-width: 100%;
+  display: block;
+}
+
+/* ============================================================
+   Badges (use <span class="badge"> or <mark class="badge">)
+============================================================ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  border-radius: 10px;
+  font-size: 0.75em;
+  font-weight: 600;
+  padding: 1px 7px;
+  min-width: 18px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   Navigation (use <nav>)
+============================================================ */
+
+nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+nav a {
+  color: var(--vscode-editor-foreground);
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: inherit;
+  text-decoration: none;
+  transition: background-color 0.1s ease;
+}
+
+nav a:hover {
+  background-color: var(--vscode-list-hoverBackground);
+  color: var(--vscode-list-hoverForeground);
+  text-decoration: none;
+}
+
+nav a[aria-current="page"],
+nav a.active {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+/* ============================================================
+   Lists — Styled Variants
+============================================================ */
+
+/* Tree/file-explorer-style list */
+ul.tree {
+  list-style: none;
+  padding-left: 0;
+}
+
+ul.tree li {
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--vscode-editor-foreground);
+}
+
+ul.tree li:hover {
+  background-color: var(--vscode-list-hoverBackground);
+  color: var(--vscode-list-hoverForeground);
+}
+
+ul.tree li.selected {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+ul.tree ul {
+  padding-left: 1.2em;
+}
+
+/* ============================================================
+   Form layout helpers
+============================================================ */
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ============================================================
+   Validation States
+============================================================ */
+
+input:invalid:not(:placeholder-shown),
+textarea:invalid:not(:placeholder-shown) {
+  border-color: var(--vscode-inputValidation-errorBorder);
+  background-color: var(--vscode-inputValidation-errorBackground);
+}
+
+.error-message {
+  color: var(--vscode-errorForeground);
+  font-size: 0.85em;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.warning-message {
+  color: var(--vscode-editorWarning-foreground);
+  font-size: 0.85em;
+  margin-top: 2px;
+}
+
+.info-message {
+  color: var(--vscode-editorInfo-foreground);
+  font-size: 0.85em;
+  margin-top: 2px;
+}
+
+/* ============================================================
+   Notifications / Alerts (use <div role="alert" class="...">)
+============================================================ */
+
+[role="alert"],
+.notification {
+  background-color: var(--vscode-notifications-background);
+  color: var(--vscode-notifications-foreground);
+  border: 1px solid var(--vscode-notifications-border);
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+}
+
+.notification.error {
+  background-color: var(--vscode-inputValidation-errorBackground);
+  border-color: var(--vscode-inputValidation-errorBorder);
+  color: var(--vscode-errorForeground);
+}
+
+.notification.warning {
+  background-color: var(--vscode-inputValidation-warningBackground);
+  border-color: var(--vscode-inputValidation-warningBorder);
+  color: var(--vscode-editorWarning-foreground);
+}
+
+.notification.info {
+  background-color: var(--vscode-inputValidation-infoBackground);
+  border-color: var(--vscode-inputValidation-infoBorder);
+  color: var(--vscode-editorInfo-foreground);
+}
+
+/* ============================================================
+   Scrollbars
+============================================================ */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--vscode-scrollbarSlider-background)
+    var(--vscode-scrollbar-background, transparent);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--vscode-scrollbar-background, transparent);
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--vscode-scrollbarSlider-background);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--vscode-scrollbarSlider-hoverBackground);
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background-color: var(--vscode-scrollbarSlider-activeBackground);
+}
+
+/* ============================================================
+   Selection
+============================================================ */
+
+::selection {
+  background-color: var(--vscode-editor-selectionBackground);
+  color: var(--vscode-editor-selectionForeground, inherit);
+}
+
+/* ============================================================
+   Focus visible (global fallback)
+============================================================ */
+
+:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   Disabled state (global)
+============================================================ */
+
+[disabled],
+[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ============================================================
+   Tooltip (use title attr + .tooltip class or data-tooltip)
+============================================================ */
+
+[data-tooltip] {
+  position: relative;
+  cursor: default;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--vscode-editorHoverWidget-background);
+  color: var(--vscode-editorHoverWidget-foreground);
+  border: 1px solid var(--vscode-editorHoverWidget-border);
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-size: 0.85em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 100;
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+}
+
+[data-tooltip]:hover::after {
+  opacity: 1;
+}
+
+/* ============================================================
+   Layout Helpers
+============================================================ */
+
+header {
+  background-color: var(--vscode-titleBar-activeBackground);
+  color: var(--vscode-titleBar-activeForeground);
+  border-bottom: 1px solid var(--vscode-titleBar-border, transparent);
+  padding: 8px 16px;
+}
+
+footer {
+  background-color: var(--vscode-statusBar-background);
+  color: var(--vscode-statusBar-foreground);
+  border-top: 1px solid var(--vscode-statusBar-border, transparent);
+  padding: 4px 16px;
+  font-size: 0.85em;
+}
+
+aside {
+  background-color: var(--vscode-sideBar-background);
+  color: var(--vscode-sideBar-foreground, var(--vscode-editor-foreground));
+  border-right: 1px solid var(--vscode-sideBar-border, transparent);
+}
+
+main {
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+}
+
+section {
+  color: var(--vscode-editor-foreground);
+}
+
+article {
+  color: var(--vscode-editor-foreground);
+}

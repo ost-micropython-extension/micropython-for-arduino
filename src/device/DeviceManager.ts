@@ -1,0 +1,266 @@
+import * as vscode from "vscode";
+import MicroPython = require("micropython.js");
+import { ReplTerminal } from "./ReplTerminal";
+import { MountManager } from "./MountManager";
+import { BoardStateManager } from "./BoardStateManager";
+import { BoardState } from "../types/boardState";
+import { RunFileOperation } from "./operation/RunFileOperation";
+import { StopRunOperation } from "./operation/StopRunOperation";
+import { RunCodeOperation } from "./operation/RunCodeOperation";
+import { SoftResetOperation } from "./operation/SoftResetOperation";
+import { FileNode, LibraryManifest } from "../types/messages";
+import { FetchBoardFilesOperation } from "./operation/FetchBoardFilesOperation";
+import { BoardFileOperations } from "./operation/BoardFileOperations";
+import {
+  FetchLibrariesOperation,
+  InstallLibraryInput,
+  InstallLibraryResult,
+  InstalledLibraryItem,
+  InstallLibraryOperation,
+  UninstallLibraryOperation,
+} from "./operation/LibraryOperations";
+import { ReadManifestOperation } from "./operation/ReadManifestOperation";
+import { ActivateMountOperation } from "./operation/ActivateMountOperation";
+import { getMountReplTitle, getReplTitle } from "../types/constants";
+
+/**
+ * Error if an something tries to access board, but board is in use of something else by the extension.
+ */
+export class BoardOperationCancelledError extends Error {
+  constructor() {
+    super("Board operation cancelled.");
+    this.name = "BoardOperationCancelledError";
+  }
+}
+
+/**
+ * Contains logic to access the board.
+ * Forwards actions to operations.
+ */
+export class DeviceManager implements vscode.Disposable {
+  readonly stateManager: BoardStateManager;
+  readonly connectedPort: string;
+  readonly repl: ReplTerminal;
+  readonly mountManager: MountManager;
+  private _cancelBoard: (() => void) | undefined;
+  private _activeBoard: InstanceType<typeof MicroPython> | null = null;
+  private readonly _closeListener: vscode.Disposable;
+
+  constructor(
+    port: string,
+    stateListener: (port: string, state: BoardState) => void,
+    mpremotePath: string = "mpremote",
+  ) {
+    this.stateManager = new BoardStateManager(
+      {
+        connected: true,
+        mountActive: false,
+        fileOpsActive: false,
+        running: false,
+        replOpen: false,
+      },
+      port,
+      stateListener,
+    );
+    this.repl = new ReplTerminal();
+    this.mountManager = new MountManager(mpremotePath);
+    this.connectedPort = port;
+
+    const delay = (ms: number) =>
+      new Promise((resolve) => setTimeout(resolve, ms));
+
+    this._closeListener = vscode.window.onDidCloseTerminal(async (terminal) => {
+      if (terminal.name === getReplTitle(this.connectedPort)) {
+        this.stateManager.set({ replOpen: false });
+      } else if (terminal.name === getMountReplTitle(this.connectedPort)) {
+        if (!this.mountManager.isClean) {
+          // terminal was killed - reopen mount and unmount correctly after delay
+          vscode.window.showErrorMessage("Mount terminal was killed");
+          const wpf = vscode.workspace.workspaceFolders;
+          if (wpf && this.connectedPort) {
+            vscode.window.withProgress(
+              {
+                location: vscode.ProgressLocation.Notification,
+                title: "closing mount properly",
+                cancellable: false,
+              },
+              async () => {
+                await this.mountManager.activate(
+                  port,
+                  wpf[0].uri.fsPath,
+                  "secureMountExit",
+                );
+                await delay(5000); // would be better to await >>>, but not possible
+                await this.mountManager.deactivate();
+                this.renameMainAfterMount();
+              },
+            );
+          }
+        } else {
+          this.renameMainAfterMount();
+        }
+      }
+    });
+  }
+
+  private async renameMainAfterMount() {
+    this.stateManager.set({ fileOpsActive: true, mountActive: false });
+    await this.renameFile("main.py", "/", "/mainWhileMount.py", "/main.py");
+  }
+
+  // FILES
+  async fetchFiles(): Promise<FileNode[]> {
+    return await FetchBoardFilesOperation.execute(this, this.connectedPort);
+  }
+  async deleteFile(isFolder: boolean, path: string) {
+    return await BoardFileOperations.delete(this, isFolder, path);
+  }
+  async renameFile(
+    newName: string,
+    dir: string,
+    path: string,
+    newPath: string,
+  ) {
+    return await BoardFileOperations.rename(this, newName, dir, path, newPath);
+  }
+  async createFile(fileName: string, folderPath: string, fullPath: string) {
+    return await BoardFileOperations.create(
+      this,
+      fileName,
+      folderPath,
+      fullPath,
+    );
+  }
+  async createFolder(folderName: string, folderPath: string, fullPath: string) {
+    return await BoardFileOperations.createFolder(
+      this,
+      folderName,
+      folderPath,
+      fullPath,
+    );
+  }
+  async getFileData(path: string) {
+    return await BoardFileOperations.getFileData(this, path);
+  }
+  async uploadFile(path: string, name: string): Promise<string | undefined> {
+    return await BoardFileOperations.uploadFile(this, path, name);
+  }
+  async uploadFileOnRemotePath(content: string, remotePath: string) {
+    await BoardFileOperations.uploadContent(this, content, remotePath);
+  }
+  async move(nodePath: string, newPath: string) {
+    await BoardFileOperations.move(this, nodePath, newPath);
+  }
+
+  // RUN
+  async runFileWhileMount(filePath: string, code: string) {
+    await RunFileOperation.executeMountedFile(this, filePath, code);
+  }
+  async runBoardfile(filePath: string) {
+    await RunFileOperation.executeBoardfile(this, filePath);
+  }
+  async runCode(code: string, name?: string) {
+    await RunCodeOperation.execute(this, code, name);
+  }
+  stopExecution() {
+    StopRunOperation.execute(this, this._activeBoard);
+  }
+  softReset() {
+    SoftResetOperation.execute(this);
+  }
+
+  // REPL
+  openRepl() {
+    this.repl.open(this.connectedPort);
+    this.stateManager.set({ replOpen: true });
+  }
+
+  // MOUNT
+  get mountActive() {
+    return this.mountManager.isActive;
+  }
+  async deactivateMount() {
+    await this.mountManager.deactivate();
+  }
+  async activateMount(folder: string) {
+    await ActivateMountOperation.execute(this, this.connectedPort, folder);
+  }
+
+  // LIBRARY + STUBS
+  fetchLibraries(): Promise<InstalledLibraryItem[]> {
+    return FetchLibrariesOperation.execute(this);
+  }
+  installLibrary(
+    input: InstallLibraryInput,
+  ): Promise<InstallLibraryResult | null> {
+    return InstallLibraryOperation.execute(this, input);
+  }
+  uninstallLibrary(name: string): Promise<InstalledLibraryItem[] | null> {
+    return UninstallLibraryOperation.execute(this, name);
+  }
+  readManifest(): Promise<LibraryManifest | null> {
+    return ReadManifestOperation.execute(this);
+  }
+
+  /**
+   * Opens a fresh board connection for the duration of the callback.
+   * Closes the REPL terminal first to ensure exclusive serial port access.
+   * Throws if a board operation is already in progress.
+   */
+  async withBoard<T>(
+    callback: (board: InstanceType<typeof MicroPython>) => Promise<T>,
+  ): Promise<T> {
+    if (this._activeBoard) {
+      throw new BoardOperationCancelledError();
+    }
+    return this._runWithBoard(callback);
+  }
+
+  private async _runWithBoard<T>(
+    callback: (board: InstanceType<typeof MicroPython>) => Promise<T>,
+  ): Promise<T> {
+    if (this.repl.isOpen) {
+      this.repl.close();
+      this.stateManager.set({ replOpen: false });
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+
+    const board = new MicroPython();
+    this._activeBoard = board;
+    await board.open(this.connectedPort);
+    await board.stop(); // Ctrl-C – ensure board is at >>> prompt
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    try {
+      return await callback(board);
+    } finally {
+      this._activeBoard = null;
+      await board.close();
+    }
+  }
+
+  async dispose(): Promise<void> {
+    if (this.mountManager.isActive) {
+      await this.mountManager.deactivate();
+    }
+
+    if (this.repl.isOpen) {
+      this.repl.close();
+    }
+
+    this._activeBoard?.stop();
+    this._activeBoard = null;
+    this._cancelBoard?.();
+
+    this.repl.dispose();
+    this.mountManager.dispose();
+    this._closeListener.dispose();
+
+    this.stateManager.set({
+      connected: false,
+      mountActive: false,
+      replOpen: false,
+      fileOpsActive: false,
+      running: false,
+    });
+  }
+}

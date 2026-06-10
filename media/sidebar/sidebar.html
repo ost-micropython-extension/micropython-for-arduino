@@ -1,0 +1,175 @@
+<!doctype html>
+<html>
+  <head>
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="sidebar.css" />
+  </head>
+  <body>
+    <svg xmlns="http://www.w3.org/2000/svg" style="display: none">
+      <symbol id="icon-info" viewBox="0 0 24 24" fill="none">
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          stroke-width="1.5"
+        />
+        <path
+          d="M12 17V11"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+        />
+        <circle
+          cx="1"
+          cy="1"
+          r="1"
+          transform="matrix(1 0 0 -1 11 9)"
+          fill="currentColor"
+        />
+      </symbol>
+    </svg>
+
+    <div class="sidebar-fixed">
+      <div class="tab-bar" id="tab-bar">
+        <button
+          class="fullwidth-btn"
+          id="tab-add-btn"
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded="false"
+        >
+          Connect Board
+        </button>
+        <ul class="tab-add-menu" id="tab-add-menu" role="listbox" hidden></ul>
+      </div>
+
+      <div class="section-header">
+        <div id="active-board-name"></div>
+        <span id="status-indicator" class="status-indicator">
+          <span id="status-dot" class="status-dot"></span>
+          <span id="status-text">Disconnected</span>
+          <span id="status-info" class="info">
+            <svg class="info-icon">
+              <use href="#icon-info" />
+            </svg>
+          </span>
+        </span>
+      </div>
+
+      <div class="hidden-when-disconnected">
+        <div class="title-row">
+          <h5 class="section-title">Actions</h5>
+          <div class="right">
+            icon-only
+            <label class="toggle">
+              <input type="checkbox" id="btn-view-toggle" />
+              <span class="toggle-track"></span>
+              <span class="toggle-thumb"></span>
+            </label>
+          </div>
+        </div>
+        <div id="button-group">
+          <button id="run-btn"></button>
+          <button id="run-selection-btn"></button>
+          <button id="connect-btn"></button>
+          <button id="stop-btn"></button>
+          <button id="soft-reset-btn"></button>
+          <button id="disconnect-btn"></button>
+        </div>
+      </div>
+
+      <hr />
+    </div>
+
+    <div class="sidebar-scroll">
+      <h5 class="section-title">Workspace</h5>
+      <div id="workspace-tree"></div>
+
+      <div class="mount-container hidden-when-disconnected">
+        <span id="mount-info" class="info">
+          <svg class="info-icon">
+            <use href="#icon-info" />
+          </svg>
+        </span>
+        <button id="mount-btn" class="fullwidth-btn">Mount Workspace</button>
+      </div>
+
+      <hr class="hidden-when-disconnected" />
+
+      <h5 class="section-title hidden-when-disconnected">Board Files</h5>
+      <div id="boardfiles-mount-message" class="hidden-when-disconnected">
+        Not accessable while mounted
+      </div>
+      <div id="boardfiles-tree" class="hidden-when-disconnected"></div>
+
+      <hr />
+
+      <div class="hidden-when-disconnected">
+        <h5 class="section-title">Libraries</h5>
+        <p class="section-sub">Installed on Board (/lib)</p>
+        <ul id="installed-list" class="tree"></ul>
+        <div class="disabled-while-mount-tooltip btn-row">
+          <button id="uninstall-btn" class="secondary fullwidth-btn" disabled>
+            Uninstall
+          </button>
+        </div>
+
+        <div class="collapsable">
+          <button
+            class="collapsable-toggle"
+            id="lib-install-toggle"
+            type="button"
+          >
+            <span class="collapsable-chevron"></span>Install Libraries
+          </button>
+          <div class="collapsable-body" id="lib-install-body" hidden>
+            <p class="section-sub">Available Packages</p>
+            <input
+              type="text"
+              id="library-search"
+              placeholder="Search..."
+              disabled
+            />
+            <ul id="library-list" class="tree"></ul>
+            <div class="disabled-while-mount-tooltip btn-row">
+              <button id="install-btn" class="fullwidth-btn">Install</button>
+            </div>
+            <p class="section-sub">Custom URL</p>
+            <div class="custom-install-row">
+              <input
+                type="text"
+                id="custom-url-input"
+                placeholder="e.g. github:johndoe/player@v1.2.0"
+              />
+              <div class="disabled-while-mount-tooltip">
+                <button id="custom-install-btn">Install</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="collapsable">
+        <button
+          class="collapsable-toggle"
+          id="advanced-options-toggle"
+          type="button"
+        >
+          <span class="collapsable-chevron"></span>Code Support
+        </button>
+        <div class="collapsable-body" id="advanced-options-body" hidden>
+          <div class="button-group">
+            <div id="codesupport-list"></div>
+            <div class="disabled-while-mount-tooltip hidden-when-disconnected">
+              <button id="gen-lib-stubs-btn" class="fullwidth-btn">
+                Regenerate Library Code Support
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="sidebar.js"></script>
+  </body>
+</html>

@@ -1,0 +1,118 @@
+{
+  "name": "micropython-for-arduino",
+  "displayName": "MicroPython for Arduino",
+  "description": "MicroPython development tools for Arduino boards",
+  "publisher": "ost-fh",
+  "version": "1.0.0",
+  "engines": {
+    "vscode": "^1.109.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ost-micropython-extension/micropython-for-arduino"
+  },
+  "icon": "media/icon_128x128.png",
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "extensionDependencies": [
+    "ms-python.vscode-pylance"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "micropython-arduino",
+          "title": "MicroPython for Arduino",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "micropython-arduino": [
+        {
+          "type": "webview",
+          "id": "micropython-arduino.sidebar",
+          "name": "MicroPython for Arduino",
+          "icon": "media/icon.svg",
+          "retainContextWhenHidden": true
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "mpyArduino.uploadToBoard",
+        "title": "MicroPython: Save File on Board (Ctrl+S)",
+        "icon": "$(save)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "mpyArduino.uploadToBoard",
+          "when": "resourcePath =~ /\\.board_cache/",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "MicroPython for Arduino",
+      "properties": {
+        "micropython-for-arduino.autoInstallBoardCodeSupport": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically install board-specific code support (editor autocompletion and type hints) when a board port is selected."
+        },
+        "micropython-for-arduino.generateCopilotInstructions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Generate a .github/copilot-instructions.md file with MicroPython context for GitHub Copilot."
+        },
+        "micropython-for-arduino.generateClaudeMd": {
+          "type": "boolean",
+          "default": false,
+          "description": "Generate a CLAUDE.md file with MicroPython context for Claude Code."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "package": "npx @vscode/vsce package",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "npm run test:unit && npm run test:integration",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "jest --testPathPattern=src/test/unit --coverage --passWithNoTests",
+    "test:integration": "jest --testPathPattern=src/test/integration --passWithNoTests",
+    "prettier": "prettier --check src",
+    "check-duplicates": "jscpd ./media ./src --reporters html,csv --output report/"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/js-yaml": "^4.0.9",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.109.0",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.39.2",
+    "jest": "^29.7.0",
+    "jest-junit": "^17.0.0",
+    "jscpd": "^4.0.5",
+    "prettier": "^3.5.3",
+    "ts-jest": "^29.3.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.54.0"
+  },
+  "dependencies": {
+    "micropython.js": "github:arduino/micropython.js",
+    "upy-package": "github:arduino/upy-package"
+  }
+}

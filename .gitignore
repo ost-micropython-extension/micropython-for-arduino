@@ -1,0 +1,10 @@
+out
+dist
+node_modules
+.vscode-test/
+*.vsix
+coverage
+junit-unit.xml
+junit-integration.xml
+CLAUDE.md
+report

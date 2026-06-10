@@ -1,0 +1,132 @@
+image: node:20
+
+stages:
+  - build
+  - test
+  - metrics
+  - package
+  - release
+
+# ----------------------------------------------------------------------
+# BUILD STAGE
+# ----------------------------------------------------------------------
+install_dependencies:
+  stage: build
+  image: node:20
+  script:
+    - echo "Installing dependencies..."
+    - npm ci
+  artifacts:
+    paths:
+      - package.json
+      - package-lock.json
+    expire_in: 1h
+
+# ----------------------------------------------------------------------
+# TEST STAGE
+# ----------------------------------------------------------------------
+unit_tests:
+  stage: test
+  needs:
+    - install_dependencies
+  image: node:20
+  script:
+    - npm ci
+    - npm run test:unit
+  coverage: '/Statements\s*:\s*([\d\.]+)/'
+  artifacts:
+    when: always
+    expire_in: 1 day
+    paths:
+      - coverage/
+
+integration_tests:
+  stage: test
+  needs:
+    - install_dependencies
+  image: node:20
+  script:
+    - npm ci
+    - npm run test:integration
+  artifacts:
+    when: always
+    expire_in: 1 day
+
+# ----------------------------------------------------------------------
+# METRICS STAGE
+# ----------------------------------------------------------------------
+quality_linting:
+  stage: metrics
+  needs:
+    - install_dependencies
+  image: node:20
+  script:
+    - npm ci
+    - npm run typecheck
+    - npm run lint
+    - npm run prettier
+
+quality_jscpd:
+  stage: metrics
+  needs:
+    - install_dependencies
+  image: node:20
+  script:
+    - npm ci
+    - npm run check-duplicates
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - report/
+
+# ----------------------------------------------------------------------
+# PACKAGE STAGE
+# ----------------------------------------------------------------------
+package_extension:
+  stage: package
+  image: node:20
+  script:
+    - npm ci
+    - npm run package
+    - VSIX=$(ls *.vsix)
+    - echo "VSIX_FILE=${VSIX}" >> build.env
+    - |
+      if [ -n "${CI_COMMIT_TAG}" ]; then
+        curl --silent --fail \
+             --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+             --upload-file "${VSIX}" \
+             "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/micropython-for-arduino/${CI_COMMIT_TAG}/${VSIX}"
+      fi
+  artifacts:
+    reports:
+      dotenv: build.env
+    paths:
+      - "*.vsix"
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# ----------------------------------------------------------------------
+# RELEASE STAGE
+# ----------------------------------------------------------------------
+create_release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  needs:
+    - job: package_extension
+      artifacts: true
+  script:
+    - echo "Creating release ${CI_COMMIT_TAG}"
+  release:
+    tag_name: $CI_COMMIT_TAG
+    name: "Release ${CI_COMMIT_TAG}"
+    description: "MicroPython for Arduino VS Code Extension ${CI_COMMIT_TAG}"
+    assets:
+      links:
+        - name: "${VSIX_FILE}"
+          url: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/micropython-for-arduino/${CI_COMMIT_TAG}/${VSIX_FILE}"
+          link_type: package
+  rules:
+    - if: $CI_COMMIT_TAG
