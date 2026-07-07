@@ -12,6 +12,7 @@ attachTooltip(addButton, "Connect a Board");
 let _availablePorts = [];
 let _openPorts = [];
 let _activePort = null;
+let _pendingAutoConnect = false;
 const _switchCallbacks = [];
 const _closeCallbacks = [];
 
@@ -35,6 +36,17 @@ export function updateAvailablePorts(ports) {
   const paths = new Set(_availablePorts.map((p) => p.path));
   const disappeared = _openPorts.filter((p) => !paths.has(p));
   disappeared.forEach((port) => _closeTab(port));
+
+  if (_pendingAutoConnect) {
+    _pendingAutoConnect = false;
+    const unconnected = _availablePorts.filter(
+      (p) => !_openPorts.includes(p.path),
+    );
+    if (unconnected.length === 1) {
+      _closeAddMenu();
+      openTab(unconnected[0].path);
+    }
+  }
 }
 
 /**
@@ -192,14 +204,21 @@ function _rebuildAddMenu() {
     li.appendChild(nameSpan);
     li.appendChild(pathSpan);
     li.addEventListener("click", () => {
-      addMenu.hidden = true;
-      addButton.setAttribute("aria-expanded", "false");
-      addButton.innerText = "+";
-      addButton.className = "tab-add-btn";
+      _closeAddMenu();
       openTab(port.path);
     });
     addMenu.appendChild(li);
   });
+}
+
+/**
+ * Hides the port dropdown and collapses the add button to "+".
+ */
+function _closeAddMenu() {
+  addMenu.hidden = true;
+  addButton.setAttribute("aria-expanded", "false");
+  addButton.innerText = "+";
+  addButton.className = "tab-add-btn";
 }
 
 addButton.addEventListener("click", async () => {
@@ -207,6 +226,7 @@ addButton.addEventListener("click", async () => {
   const willOpen = addMenu.hidden;
   addMenu.hidden = !willOpen;
   addButton.setAttribute("aria-expanded", String(!willOpen));
+  _pendingAutoConnect = willOpen;
 
   if (willOpen) {
     vscode.postMessage({ type: "getPorts" });
@@ -221,5 +241,6 @@ document.addEventListener("click", (e) => {
   if (!addButton.contains(e.target) && !addMenu.contains(e.target)) {
     addMenu.hidden = true;
     addButton.setAttribute("aria-expanded", "false");
+    _pendingAutoConnect = false;
   }
 });
