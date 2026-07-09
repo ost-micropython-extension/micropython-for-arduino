@@ -120,7 +120,7 @@ export function updateStatus(boardState) {
   softResetButton.disabled = fileOpsActive || running;
 
   // Mount
-  mountButton.textContent = mountActive ? "Unmount" : "Mount Workspace";
+  mountButton.textContent = mountActive ? "Unmount" : "Mount Folder";
   mountButton.disabled =
     fileOpsActive || running || mountButton.dataset.locked === "true";
 

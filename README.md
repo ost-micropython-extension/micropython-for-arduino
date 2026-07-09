@@ -61,14 +61,14 @@ Simple to use MicroPython extension for Arduino microcontrollers.
 - Shows workspace with most important actions
 - Drag and drop move
 
-### Mount Workspace
+### Mount Folder
 
-- **Mount Workspace** connects your local VS Code workspace folder directly to the board's filesystem using `mpremote mount`.
+- **Mount Folder** connects a local folder from your VS Code workspace directly to the board's filesystem using `mpremote mount`.
 - While mounted, files you save locally are immediately visible and executable on the board, no manual upload step needed.
 
 **How to use:**
 
-1. Click **Mount Workspace** in the sidebar.
+1. Click **Mount Folder** in the sidebar.
 2. If there are subfolders, choose the folder to mount in the Quick Pick Menu.
 3. A terminal opens and the board connects in REPL mode.
 4. Run files or interact with the REPL directly in the mount terminal.
