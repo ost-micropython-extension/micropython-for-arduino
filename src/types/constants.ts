@@ -8,6 +8,8 @@ export const BOARD_CODE_SUPPORT_SUBFOLDER = "boards";
 export const CODE_SUPPORT_GENERATION_LOG_FILE =
   "lib-codesupport-generation.log";
 
+/** Enter raw REPL mode — input is not echoed (MicroPython serial control) */
+export const CTRL_A = "\x01";
 /** Enter friendly REPL mode (MicroPython serial control) */
 export const CTRL_B = "\x02";
 /** KeyboardInterrupt — stops running code (MicroPython serial control) */
@@ -18,6 +20,9 @@ export const CTRL_D = "\x04";
 export const CTRL_E = "\x05";
 /** Exits Mount */
 export const CTRL_X = "\x18";
+
+/** Temp file staged in the mounted folder to run code without echoing it */
+export const MOUNT_RUN_FILE = ".mpy_run.py";
 
 /** Raw REPL protocol marker (OK) */
 export const RAW_REPL_OK = "OK";

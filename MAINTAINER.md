@@ -157,7 +157,7 @@ The user can run scripts directly from the workspace or from the board. Output i
 
 When running scripts, the behaviour differs depending on what is being run and whether mount is active:
 - **Workspace file (without mount):** The file's source code is read locally and sent directly to the board via the Raw REPL protocol as a string. No file is uploaded to the board.
-- **Workspace file (with mount):** The file is executed via the active mount REPL using paste mode: `exec(open("relative/path").read())`. If the file is outside the mounted folder, the source code is sent as a code block instead.
+- **Workspace file (with mount):** The file is executed via the active mount REPL using paste mode: `exec(open("relative/path").read())`. If the file is outside the mounted folder (this also applies to Run Selection), the code is staged as a temp file (`.mpy_run.py`) in the mounted folder and executed the same way — so only the single exec line is echoed in the terminal and the code bytes never pass through the console input. The temp file is removed on unmount.
 - **Board file:** A short Python snippet is sent via Raw REPL that reads and executes the file from the board's own filesystem: `exec(open(path).read(), globals())`.
 
 **Entry point:** Script execution is in `src/device/operation/RunFileOperation.ts` and `src/device/operation/RunCodeOperation.ts`. The REPL is implemented in `src/device/ReplTerminal.ts`.

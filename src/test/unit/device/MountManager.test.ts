@@ -1,3 +1,5 @@
+import * as fs from "fs";
+import * as path from "path";
 import * as vscode from "vscode";
 import { MountManager } from "../../../device/MountManager";
 
@@ -164,22 +166,10 @@ describe("MountManager", () => {
     expect(spy).toHaveBeenCalledWith("print('hello')");
   });
 
-  it("sendCodeBlock escapes non-ASCII characters as Python escapes", async () => {
-    const manager = new MountManager();
-
-    await manager.activate("COM3", "/workspace");
-
-    terminal.sendText.mockClear();
-
-    manager.sendCodeBlock('print("ä €")');
-
-    expect(terminal.sendText).toHaveBeenCalledWith(
-      'print("\\xe4 \\u20ac")',
-      false,
-    );
-  });
-
-  it("sendCodeBlock escapes emojis as a single code point", async () => {
+  it("sendCodeBlock stages the code as a temp file in the mounted folder", async () => {
+    const writeSpy = jest
+      .spyOn(fs, "writeFileSync")
+      .mockImplementation(() => {});
     const manager = new MountManager();
 
     await manager.activate("COM3", "/workspace");
@@ -188,13 +178,20 @@ describe("MountManager", () => {
 
     manager.sendCodeBlock('print("📦 Package is here!")');
 
+    expect(writeSpy).toHaveBeenCalledWith(
+      path.join("/workspace", ".mpy_run.py"),
+      'print("📦 Package is here!")',
+    );
     expect(terminal.sendText).toHaveBeenCalledWith(
-      'print("\\U0001f4e6 Package is here!")',
+      'exec(open(".mpy_run.py").read())',
       false,
     );
   });
 
-  it("sendCodeBlock leaves pure ASCII code unchanged", async () => {
+  it("sendCodeBlock shows an error and sends nothing when staging fails", async () => {
+    jest.spyOn(fs, "writeFileSync").mockImplementation(() => {
+      throw new Error("disk full");
+    });
     const manager = new MountManager();
 
     await manager.activate("COM3", "/workspace");
@@ -203,6 +200,20 @@ describe("MountManager", () => {
 
     manager.sendCodeBlock("print('hello')");
 
-    expect(terminal.sendText).toHaveBeenCalledWith("print('hello')", false);
+    expect(vscode.window.showErrorMessage).toHaveBeenCalled();
+    expect(terminal.sendText).not.toHaveBeenCalled();
+  });
+
+  it("removes the staged temp file on deactivate", async () => {
+    const unlinkSpy = jest.spyOn(fs, "unlinkSync").mockImplementation(() => {});
+    const manager = new MountManager();
+
+    await manager.activate("COM3", "/workspace");
+
+    await manager.deactivate();
+
+    expect(unlinkSpy).toHaveBeenCalledWith(
+      path.join("/workspace", ".mpy_run.py"),
+    );
   });
 });

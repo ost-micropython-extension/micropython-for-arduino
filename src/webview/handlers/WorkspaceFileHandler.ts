@@ -5,7 +5,10 @@ import { FileNode } from "../../types/messages";
 import { Sender } from "../WebviewGateway";
 import { validateName } from "../utils";
 import { ConnectionManager } from "../../device/ConnectionManager";
-import { FOLDER_OPENED_BOARD_FILES } from "../../types/constants";
+import {
+  FOLDER_OPENED_BOARD_FILES,
+  MOUNT_RUN_FILE,
+} from "../../types/constants";
 
 /**
  * Directories that will not show in workspace tree.
@@ -19,6 +22,11 @@ const IGNORED_DIRS = new Set([
   ".vscode",
   FOLDER_OPENED_BOARD_FILES,
 ]);
+
+/**
+ * Files that will not show in workspace tree.
+ */
+const IGNORED_FILES = new Set([MOUNT_RUN_FILE]);
 
 /**
  * Contains handlers for workspace file tree actions.
@@ -325,6 +333,9 @@ function buildWorkspaceTree(dirPath: string, root: string): FileNode[] {
         children,
       });
     } else if (entry.isFile()) {
+      if (IGNORED_FILES.has(entry.name)) {
+        continue;
+      }
       nodes.push({
         id: fullPath,
         name: entry.name,
