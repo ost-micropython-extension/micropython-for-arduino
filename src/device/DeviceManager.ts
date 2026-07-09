@@ -21,7 +21,16 @@ import {
 } from "./operation/LibraryOperations";
 import { ReadManifestOperation } from "./operation/ReadManifestOperation";
 import { ActivateMountOperation } from "./operation/ActivateMountOperation";
-import { getMountReplTitle, getReplTitle } from "../types/constants";
+import {
+  disposeReplSessionTerminal,
+  enterReplSession,
+  exitReplSession,
+} from "./operation/ScriptRunner";
+import {
+  getMountReplTitle,
+  getReplTitle,
+  getScriptTerminalTitle,
+} from "../types/constants";
 
 /**
  * Error if an something tries to access board, but board is in use of something else by the extension.
@@ -73,6 +82,11 @@ export class DeviceManager implements vscode.Disposable {
     this._closeListener = vscode.window.onDidCloseTerminal(async (terminal) => {
       if (terminal.name === getReplTitle(this.connectedPort)) {
         this.stateManager.set({ replOpen: false });
+      } else if (terminal.name === getScriptTerminalTitle(this.connectedPort)) {
+        // ScriptRunner closes the session's serial connection itself
+        if (!this.repl.isOpen) {
+          this.stateManager.set({ replOpen: false });
+        }
       } else if (terminal.name === getMountReplTitle(this.connectedPort)) {
         if (!this.mountManager.isClean) {
           // terminal was killed - reopen mount and unmount correctly after delay
@@ -171,9 +185,29 @@ export class DeviceManager implements vscode.Disposable {
   }
 
   // REPL
-  openRepl() {
-    this.repl.open(this.connectedPort);
+  async openRepl(): Promise<void> {
+    if (await exitReplSession(this.connectedPort)) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    await this.repl.open(this.connectedPort);
     this.stateManager.set({ replOpen: true });
+  }
+
+  /**
+   * Attaches an interactive REPL to the script output terminal after a run,
+   * so the user can enter commands based on the executed code.
+   */
+  async enterScriptRepl(): Promise<void> {
+    if (this.mountManager.isActive || this.repl.isOpen) {
+      return;
+    }
+    try {
+      if (await enterReplSession(this.connectedPort)) {
+        this.stateManager.set({ replOpen: true });
+      }
+    } catch {
+      // Terminal stays non-interactive when the port cannot be reopened
+    }
   }
 
   // MOUNT
@@ -255,6 +289,10 @@ export class DeviceManager implements vscode.Disposable {
       this.stateManager.set({ replOpen: false });
       await new Promise((resolve) => setTimeout(resolve, 300));
     }
+    if (await exitReplSession(this.connectedPort)) {
+      this.stateManager.set({ replOpen: false });
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
 
     const board = new MicroPython();
     this._activeBoard = board;
@@ -277,6 +315,7 @@ export class DeviceManager implements vscode.Disposable {
     if (this.repl.isOpen) {
       this.repl.close();
     }
+    await disposeReplSessionTerminal(this.connectedPort);
 
     this._activeBoard?.stop();
     this._activeBoard = null;

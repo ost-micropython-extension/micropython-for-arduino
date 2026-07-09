@@ -26,5 +26,8 @@ export class RunCodeOperation {
         running: false,
       });
     });
+
+    // Keep the terminal interactive so the user can inspect the run's state
+    await device.enterScriptRepl();
   }
 }

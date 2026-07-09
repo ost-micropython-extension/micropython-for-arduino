@@ -1,4 +1,6 @@
 import { DeviceManager } from "../DeviceManager";
+import { writeToReplSession } from "./ScriptRunner";
+import { CTRL_C, CTRL_D } from "../../types/constants";
 
 export class SoftResetOperation {
   /**
@@ -10,6 +12,12 @@ export class SoftResetOperation {
     // Mount mode: send Ctrl+D directly into the Mount REPL
     if (mountManager.isActive) {
       mountManager.sendSoftReset();
+      return;
+    }
+
+    // Send reset through the script terminal's REPL session
+    if (writeToReplSession(device.connectedPort, CTRL_C)) {
+      setTimeout(() => writeToReplSession(device.connectedPort, CTRL_D), 100);
       return;
     }
 

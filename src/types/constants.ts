@@ -30,5 +30,7 @@ export const ENTER_REPL = `${CTRL_C}${CTRL_C}${CTRL_B}`;
 
 /** Returns REPL terminal name */
 export const getReplTitle = (port: string) => `REPL (${port})`;
+/** Returns script output terminal name */
+export const getScriptTerminalTitle = (port: string) => `MicroPython (${port})`;
 /** Returns Mount REPL terminal name */
 export const getMountReplTitle = (port: string) => `Mount REPL (${port})`;

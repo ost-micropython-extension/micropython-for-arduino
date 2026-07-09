@@ -1,5 +1,7 @@
 import { DeviceManager } from "../DeviceManager";
 import MicroPython = require("micropython.js");
+import { writeToReplSession } from "./ScriptRunner";
+import { CTRL_C } from "../../types/constants";
 
 export class StopRunOperation {
   /**
@@ -16,6 +18,8 @@ export class StopRunOperation {
       mountManager.sendInterrupt();
     } else if (repl.isOpen) {
       repl.interrupt();
+    } else if (writeToReplSession(device.connectedPort, CTRL_C)) {
+      // Interrupt sent through the script terminal's REPL session
     } else {
       // Normal execution
       if (activeBoard === null) {
