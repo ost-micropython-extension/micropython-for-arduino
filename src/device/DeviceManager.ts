@@ -44,6 +44,7 @@ export class DeviceManager implements vscode.Disposable {
   readonly mountManager: MountManager;
   private _cancelBoard: (() => void) | undefined;
   private _activeBoard: InstanceType<typeof MicroPython> | null = null;
+  private _verifying: Promise<void> = Promise.resolve();
   private readonly _closeListener: vscode.Disposable;
 
   constructor(
@@ -203,6 +204,35 @@ export class DeviceManager implements vscode.Disposable {
   }
 
   /**
+   * Verifies that the board on this port is reachable by requesting a REPL
+   * prompt. Fails when the serial port cannot be opened, is held by another
+   * application, or the board does not respond within the timeout.
+   * Concurrent withBoard() calls wait until verification has finished.
+   */
+  async verifyConnection(timeoutMs: number = 5000): Promise<void> {
+    this._verifying = this._runWithBoard(
+      (board) =>
+        new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(
+            () => reject(new Error("Board did not respond.")),
+            timeoutMs,
+          );
+          board.get_prompt().then(
+            () => {
+              clearTimeout(timer);
+              resolve();
+            },
+            (err: Error) => {
+              clearTimeout(timer);
+              reject(err);
+            },
+          );
+        }),
+    );
+    await this._verifying;
+  }
+
+  /**
    * Opens a fresh board connection for the duration of the callback.
    * Closes the REPL terminal first to ensure exclusive serial port access.
    * Throws if a board operation is already in progress.
@@ -210,6 +240,7 @@ export class DeviceManager implements vscode.Disposable {
   async withBoard<T>(
     callback: (board: InstanceType<typeof MicroPython>) => Promise<T>,
   ): Promise<T> {
+    await this._verifying;
     if (this._activeBoard) {
       throw new BoardOperationCancelledError();
     }
@@ -227,10 +258,10 @@ export class DeviceManager implements vscode.Disposable {
 
     const board = new MicroPython();
     this._activeBoard = board;
-    await board.open(this.connectedPort);
-    await board.stop(); // Ctrl-C – ensure board is at >>> prompt
-    await new Promise((resolve) => setTimeout(resolve, 150));
     try {
+      await board.open(this.connectedPort);
+      await board.stop(); // Ctrl-C – ensure board is at >>> prompt
+      await new Promise((resolve) => setTimeout(resolve, 150));
       return await callback(board);
     } finally {
       this._activeBoard = null;

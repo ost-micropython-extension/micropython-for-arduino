@@ -65,6 +65,16 @@ export function openTab(port) {
 }
 
 /**
+ * Close the tab for the given port, e.g. when the extension reports
+ * that connecting to the port failed.
+ */
+export function closeTab(port) {
+  if (_openPorts.includes(port)) {
+    _closeTab(port);
+  }
+}
+
+/**
  * Register a callback that fires whenever the active tab changes.
  * cb(newPort: string | null)
  */
