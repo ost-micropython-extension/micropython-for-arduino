@@ -137,7 +137,7 @@ The following restrictions apply while mount is active:
 
 ### Workspace File Tree
 
-The workspace file tree is built by reading the local filesystem recursively with Node.js `fs.readdirSync`. The following directories are always excluded from the tree: `node_modules`, `.git`, `__pycache__`, `dist`, `out`, `.vscode`, and `.board_cache`. The result is a `FileNode` tree where each node's `id` is the absolute file path on disk. This path is passed directly to all file operations (open, rename, delete, move, upload). Folders appear before files; both are sorted alphabetically within each level.
+The workspace file tree is built by reading the local filesystem recursively with Node.js `fs.readdirSync`. Hidden files and folders (leading dot, e.g. `.git`, `.github`, `.DS_Store`, `.board_cache`, `.mpy_codesupport`, `.mpy_run.py`) are always excluded from the tree, as are the directories `node_modules`, `__pycache__`, `dist`, and `out`. The result is a `FileNode` tree where each node's `id` is the absolute file path on disk. This path is passed directly to all file operations (open, rename, delete, move, upload). Folders appear before files; both are sorted alphabetically within each level.
 
 **Entry point:** `src/webview/handlers/WorkspaceFileHandler.ts`, function `buildWorkspaceTree`.
 
