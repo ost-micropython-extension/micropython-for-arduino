@@ -45,11 +45,11 @@ const runSelectionButton = document.getElementById("run-selection-btn");
 const disconnectButton = document.getElementById("disconnect-btn");
 
 const allButtons = [
-  connectButton,
   runButton,
   runSelectionButton,
-  softResetButton,
   stopButton,
+  connectButton,
+  softResetButton,
   disconnectButton,
 ];
 
