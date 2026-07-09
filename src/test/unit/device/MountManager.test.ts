@@ -164,15 +164,45 @@ describe("MountManager", () => {
     expect(spy).toHaveBeenCalledWith("print('hello')");
   });
 
-  it("sendCodeBlock sends escaped code", async () => {
+  it("sendCodeBlock escapes non-ASCII characters as Python escapes", async () => {
     const manager = new MountManager();
 
     await manager.activate("COM3", "/workspace");
 
     terminal.sendText.mockClear();
 
-    manager.sendCodeBlock("ä");
+    manager.sendCodeBlock('print("ä €")');
 
-    expect(terminal.sendText).toHaveBeenCalled();
+    expect(terminal.sendText).toHaveBeenCalledWith(
+      'print("\\xe4 \\u20ac")',
+      false,
+    );
+  });
+
+  it("sendCodeBlock escapes emojis as a single code point", async () => {
+    const manager = new MountManager();
+
+    await manager.activate("COM3", "/workspace");
+
+    terminal.sendText.mockClear();
+
+    manager.sendCodeBlock('print("📦 Package is here!")');
+
+    expect(terminal.sendText).toHaveBeenCalledWith(
+      'print("\\U0001f4e6 Package is here!")',
+      false,
+    );
+  });
+
+  it("sendCodeBlock leaves pure ASCII code unchanged", async () => {
+    const manager = new MountManager();
+
+    await manager.activate("COM3", "/workspace");
+
+    terminal.sendText.mockClear();
+
+    manager.sendCodeBlock("print('hello')");
+
+    expect(terminal.sendText).toHaveBeenCalledWith("print('hello')", false);
   });
 });

@@ -199,11 +199,21 @@ export class MountManager implements vscode.Disposable {
 }
 
 /**
- * Returns ascii string with replaced non ascii signs
+ * Replaces non-ASCII characters with Python escape sequences (\xNN, \uNNNN,
+ * \UNNNNNNNN) so only ASCII bytes are sent over the wire. Inside (non-raw)
+ * string literals the escapes decode back to the original characters.
+ * The `u` regex flag makes surrogate pairs (e.g. emojis) match as one
+ * code point instead of two halves.
  */
 function escapeNonAscii(str: string): string {
-  return str.replace(/[^\x00-\x7F]/g, (ch) => {
+  return str.replace(/[^\x00-\x7F]/gu, (ch) => {
     const code = ch.codePointAt(0)!;
-    return `\\0x${code.toString(16).padStart(2, "0")}`;
+    if (code <= 0xff) {
+      return `\\x${code.toString(16).padStart(2, "0")}`;
+    }
+    if (code <= 0xffff) {
+      return `\\u${code.toString(16).padStart(4, "0")}`;
+    }
+    return `\\U${code.toString(16).padStart(8, "0")}`;
   });
 }
