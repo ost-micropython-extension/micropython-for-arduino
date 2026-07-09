@@ -1,5 +1,5 @@
 import { attachTooltip, hideTooltip } from "../tooltip.js";
-import { ACTION_ICONS } from "./constants.js";
+import { ACTION_ICONS, FILE_ICONS } from "./constants.js";
 import { registerBuiltinActions } from "./actions.js";
 import { attachDragSource, attachContainerDrop } from "./dnd.js";
 import {
@@ -293,6 +293,14 @@ export class FileTree {
     label.dataset.ftLabel = node.type;
     label.textContent = node.name;
 
+    const fileIcon = document.createElement("span");
+    if (!isFolder) {
+      fileIcon.dataset.ftFileIcon = "";
+      fileIcon.innerHTML = node.name.endsWith(".py")
+        ? FILE_ICONS.python
+        : FILE_ICONS.file;
+    }
+
     const meta = document.createElement("span");
     meta.dataset.ftMeta = "";
     if (node.meta?.size) {
@@ -301,6 +309,7 @@ export class FileTree {
 
     row.appendChild(indent);
     row.appendChild(toggle);
+    row.appendChild(fileIcon);
     row.appendChild(label);
     row.appendChild(meta);
     row.appendChild(this._buildActions(node));
