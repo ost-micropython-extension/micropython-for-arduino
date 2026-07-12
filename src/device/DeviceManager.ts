@@ -194,15 +194,16 @@ export class DeviceManager implements vscode.Disposable {
   }
 
   /**
-   * Attaches an interactive REPL to the script output terminal after a run,
-   * so the user can enter commands based on the executed code.
+   * Attaches an interactive REPL to the script output terminal after a run
+   * or stop, so the user can enter commands based on the executed code.
+   * With `createTerminal`, a missing script terminal is created and shown.
    */
-  async enterScriptRepl(): Promise<void> {
+  async enterScriptRepl(createTerminal: boolean = false): Promise<void> {
     if (this.mountManager.isActive || this.repl.isOpen) {
       return;
     }
     try {
-      if (await enterReplSession(this.connectedPort)) {
+      if (await enterReplSession(this.connectedPort, createTerminal)) {
         this.stateManager.set({ replOpen: true });
       }
     } catch {

@@ -23,15 +23,22 @@ export class StopRunOperation {
     } else {
       // Normal execution
       if (activeBoard === null) {
-        device.withBoard(async (board) => {
-          board.stop();
+        // Nothing started by the extension (e.g. auto-running main.py):
+        // stop it and land the user at a REPL prompt
+        await device.withBoard(async (board) => {
+          await board.stop();
         });
+        stateManager.set({
+          running: false,
+        });
+        await device.enterScriptRepl(true);
       } else {
+        // A running script — its run flow enters the REPL after stopping
         activeBoard.stop();
+        stateManager.set({
+          running: false,
+        });
       }
-      stateManager.set({
-        running: false,
-      });
     }
   }
 }

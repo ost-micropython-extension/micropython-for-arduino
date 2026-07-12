@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import MicroPython = require("micropython.js");
 import {
+  CTRL_B,
   getScriptTerminalTitle,
   RAW_REPL_EOT,
   RAW_REPL_OK,
@@ -93,6 +94,8 @@ async function closeSession(entry: ScriptTerminal): Promise<boolean> {
     entry.replDataHandler = null;
   }
   entry.inputHandler = null;
+  // Leave the abandoned >>> prompt line so following output starts clean
+  termWrite(entry, "\r\n");
   await board.close();
   return true;
 }
@@ -101,10 +104,18 @@ async function closeSession(entry: ScriptTerminal): Promise<boolean> {
  * Attaches an interactive REPL session to the script terminal of the port,
  * so the user can enter commands based on the executed code. Opens its own
  * serial connection; the board keeps the state of the last run.
+ * With `createTerminal`, a missing script terminal is created and shown.
  * Returns whether a session is active afterwards.
  */
-export async function enterReplSession(port: string): Promise<boolean> {
-  const entry = scriptTerminals.get(port);
+export async function enterReplSession(
+  port: string,
+  createTerminal: boolean = false,
+): Promise<boolean> {
+  let entry = scriptTerminals.get(port);
+  if (!entry && createTerminal) {
+    entry = getOrCreateTerminal(port);
+    entry.terminal.show(true);
+  }
   if (!entry) {
     return false;
   }
@@ -115,9 +126,19 @@ export async function enterReplSession(port: string): Promise<boolean> {
   await board.open(port);
   entry.replBoard = board;
 
+  // Watch for a friendly >>> prompt; the rolling buffer covers chunk splits
+  let promptSeen = false;
+  let probeBuffer = "";
   const dataHandler = (data: Buffer) => {
+    const text = data.toString();
+    if (!promptSeen) {
+      probeBuffer = (probeBuffer + text).slice(-16);
+      if (probeBuffer.includes(">>>")) {
+        promptSeen = true;
+      }
+    }
     if (entry.isOpen) {
-      entry.writeEmitter.fire(data.toString());
+      entry.writeEmitter.fire(text);
     }
   };
   entry.replDataHandler = dataHandler;
@@ -130,6 +151,13 @@ export async function enterReplSession(port: string): Promise<boolean> {
   };
   // Request a fresh >>> prompt without resetting the interpreter state
   board.serial.write(Buffer.from("\r"));
+  // A stopped run leaves the board in raw REPL mode, where \r produces no
+  // prompt — exit raw REPL with Ctrl-B when no >>> showed up in time
+  setTimeout(() => {
+    if (!promptSeen && entry.replBoard === board && board.serial?.isOpen) {
+      board.serial.write(Buffer.from(CTRL_B));
+    }
+  }, 400);
   return true;
 }
 

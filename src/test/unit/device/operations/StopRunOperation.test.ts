@@ -7,7 +7,7 @@ function makeDevice() {
     stateManager: { set: jest.fn() },
     mountManager: { isActive: false as boolean, sendInterrupt: jest.fn() },
     repl: { isOpen: false as boolean, interrupt: jest.fn() },
-    // withBoard is fire-and-forget in the normal branch
+    enterScriptRepl: jest.fn().mockResolvedValue(undefined),
     withBoard: jest
       .fn()
       .mockImplementation(async (cb: (b: { stop: jest.Mock }) => unknown) =>
@@ -89,6 +89,14 @@ describe("StopRunOperation", () => {
       expect(device.withBoard).toHaveBeenCalled();
       expect(board.stop).toHaveBeenCalled();
     });
+
+    it("lands the user at a REPL prompt after stopping", async () => {
+      const device = makeDevice();
+
+      await StopRunOperation.execute(device as any, null);
+
+      expect(device.enterScriptRepl).toHaveBeenCalledWith(true);
+    });
   });
 
   // ── normal mode: activeBoard provided → stop directly ─────────────────────────
@@ -102,6 +110,15 @@ describe("StopRunOperation", () => {
 
       expect(activeBoard.stop).toHaveBeenCalled();
       expect(device.withBoard).not.toHaveBeenCalled();
+    });
+
+    it("does not enter the REPL itself — the run flow does that", async () => {
+      const device = makeDevice();
+      const activeBoard = { stop: jest.fn() };
+
+      await StopRunOperation.execute(device as any, activeBoard as any);
+
+      expect(device.enterScriptRepl).not.toHaveBeenCalled();
     });
   });
 });
