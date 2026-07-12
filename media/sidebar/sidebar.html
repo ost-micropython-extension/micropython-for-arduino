@@ -124,7 +124,14 @@
             <span class="collapsable-chevron"></span>Install Libraries
           </button>
           <div class="collapsable-body" id="lib-install-body" hidden>
-            <p class="section-sub">Available Packages</p>
+            <div class="section-sub-row">
+              <p class="section-sub">Available Packages</p>
+              <button
+                id="library-refresh-btn"
+                type="button"
+                aria-label="Reload package list"
+              ></button>
+            </div>
             <input
               type="text"
               id="library-search"

@@ -28,6 +28,7 @@ export class LibraryHandler {
       const libraries = await getPackageList();
       send({ type: "libraries", value: libraries });
     } catch (err) {
+      send({ type: "libraries", value: [], error: (err as Error).message });
       vscode.window.showErrorMessage(
         `Failed to load packages: ${(err as Error).message}`,
       );

@@ -197,7 +197,7 @@ window.addEventListener("message", (event) => {
       break;
 
     case "libraries":
-      updateLibraries(message.value);
+      updateLibraries(message.value, message.error);
       break;
 
     case "installResult":
