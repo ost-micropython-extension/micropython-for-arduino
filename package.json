@@ -3,7 +3,7 @@
   "displayName": "MicroPython for Arduino",
   "description": "MicroPython development tools for Arduino boards",
   "publisher": "ost-fh",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "engines": {
     "vscode": "^1.109.0"
   },
