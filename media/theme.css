@@ -263,7 +263,7 @@ hr {
   border: none;
   border-top: 1px solid var(--vscode-textSeparator-foreground);
   margin: 1em 0;
-  opacity: 0.6;
+  opacity: 0.85;
 }
 
 /* ============================================================
