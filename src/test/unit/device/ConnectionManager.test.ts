@@ -3,9 +3,11 @@ import { ConnectionManager } from "../../../device/ConnectionManager";
 import { PortInfo } from "../../../types/messages";
 
 const mockDispose = jest.fn().mockResolvedValue(undefined);
+const mockVerifyConnection = jest.fn().mockResolvedValue(undefined);
 jest.mock("../../../device/DeviceManager", () => ({
   DeviceManager: jest.fn().mockImplementation(() => ({
     dispose: mockDispose,
+    verifyConnection: mockVerifyConnection,
   })),
 }));
 
@@ -192,29 +194,45 @@ describe("ConnectionManager", () => {
       expect(() => cm.getDevice("COM3")).toThrow("No connected Device to COM3");
     });
 
-    it("open() registers a device so getDevice() no longer throws", () => {
+    it("open() registers a device so getDevice() no longer throws", async () => {
       const cm = new ConnectionManager();
-      cm.open("COM3");
+      await cm.open("COM3");
       expect(() => cm.getDevice("COM3")).not.toThrow();
     });
 
-    it("getDevice() returns the device created by open()", () => {
+    it("getDevice() returns the device created by open()", async () => {
       const cm = new ConnectionManager();
-      cm.open("COM3");
+      await cm.open("COM3");
       const device = cm.getDevice("COM3");
       expect(device).toBeDefined();
     });
 
+    it("open() verifies the board connection", async () => {
+      const cm = new ConnectionManager();
+      await cm.open("COM3");
+      expect(mockVerifyConnection).toHaveBeenCalled();
+    });
+
+    it("open() throws and removes the device when verification fails", async () => {
+      mockVerifyConnection.mockRejectedValueOnce(new Error("port busy"));
+      const cm = new ConnectionManager();
+      await expect(cm.open("COM3")).rejects.toThrow(
+        "Cannot connect to COM3: the serial port is in use by another application or the board is not responding.",
+      );
+      expect(() => cm.getDevice("COM3")).toThrow();
+      expect(mockDispose).toHaveBeenCalled();
+    });
+
     it("close() removes the device so getDevice() throws afterwards", async () => {
       const cm = new ConnectionManager();
-      cm.open("COM3");
+      await cm.open("COM3");
       await cm.close("COM3");
       expect(() => cm.getDevice("COM3")).toThrow();
     });
 
     it("close() calls dispose() on the device", async () => {
       const cm = new ConnectionManager();
-      cm.open("COM3");
+      await cm.open("COM3");
       await cm.close("COM3");
       expect(mockDispose).toHaveBeenCalled();
     });
@@ -224,10 +242,10 @@ describe("ConnectionManager", () => {
       await expect(cm.close("COM9")).resolves.toBeUndefined();
     });
 
-    it("multiple ports can be open simultaneously", () => {
+    it("multiple ports can be open simultaneously", async () => {
       const cm = new ConnectionManager();
-      cm.open("COM3");
-      cm.open("COM4");
+      await cm.open("COM3");
+      await cm.open("COM4");
       expect(() => cm.getDevice("COM3")).not.toThrow();
       expect(() => cm.getDevice("COM4")).not.toThrow();
     });

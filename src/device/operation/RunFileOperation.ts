@@ -30,6 +30,9 @@ export class RunFileOperation {
 
         await runBoardFile(board, filePath, device.connectedPort);
       });
+
+      // Keep the terminal interactive so the user can inspect the run's state
+      await device.enterScriptRepl();
     } finally {
       stateManager.set({ running: false });
     }

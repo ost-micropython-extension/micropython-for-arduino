@@ -5,20 +5,12 @@ import { FileNode } from "../../types/messages";
 import { Sender } from "../WebviewGateway";
 import { validateName } from "../utils";
 import { ConnectionManager } from "../../device/ConnectionManager";
-import { FOLDER_OPENED_BOARD_FILES } from "../../types/constants";
-
 /**
  * Directories that will not show in workspace tree.
+ * Hidden entries (leading dot, e.g. .git, .board_cache, .mpy_codesupport)
+ * are filtered separately in buildWorkspaceTree.
  */
-const IGNORED_DIRS = new Set([
-  "node_modules",
-  ".git",
-  "__pycache__",
-  "dist",
-  "out",
-  ".vscode",
-  FOLDER_OPENED_BOARD_FILES,
-]);
+const IGNORED_DIRS = new Set(["node_modules", "__pycache__", "dist", "out"]);
 
 /**
  * Contains handlers for workspace file tree actions.
@@ -304,13 +296,16 @@ export class WorkspaceFileHandler {
 
 /**
  * Builds a recursive workspace file tree.
- * Ignored folders are skipped.
+ * Hidden entries (leading dot) and ignored folders are skipped.
  */
 function buildWorkspaceTree(dirPath: string, root: string): FileNode[] {
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
   const nodes: FileNode[] = [];
 
   for (const entry of entries) {
+    if (entry.name.startsWith(".")) {
+      continue;
+    }
     const fullPath = path.join(dirPath, entry.name);
 
     if (entry.isDirectory()) {

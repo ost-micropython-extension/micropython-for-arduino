@@ -97,7 +97,7 @@ export type ExtensionMessage =
     }
   // Libraries
   | { type: "installedLibraries"; value: object[]; port: string }
-  | { type: "libraries"; value: LibraryEntry[] }
+  | { type: "libraries"; value: LibraryEntry[]; error?: string }
   | { type: "installResult"; success: boolean }
   | { type: "uninstallResult"; success: boolean }
   | { type: "codeSupport"; value: CodeSupportItem[] };

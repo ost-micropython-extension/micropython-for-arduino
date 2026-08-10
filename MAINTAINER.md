@@ -137,7 +137,7 @@ The following restrictions apply while mount is active:
 
 ### Workspace File Tree
 
-The workspace file tree is built by reading the local filesystem recursively with Node.js `fs.readdirSync`. The following directories are always excluded from the tree: `node_modules`, `.git`, `__pycache__`, `dist`, `out`, `.vscode`, and `.board_cache`. The result is a `FileNode` tree where each node's `id` is the absolute file path on disk. This path is passed directly to all file operations (open, rename, delete, move, upload). Folders appear before files; both are sorted alphabetically within each level.
+The workspace file tree is built by reading the local filesystem recursively with Node.js `fs.readdirSync`. Hidden files and folders (leading dot, e.g. `.git`, `.github`, `.DS_Store`, `.board_cache`, `.mpy_codesupport`, `.mpy_run.py`) are always excluded from the tree, as are the directories `node_modules`, `__pycache__`, `dist`, and `out`. The result is a `FileNode` tree where each node's `id` is the absolute file path on disk. This path is passed directly to all file operations (open, rename, delete, move, upload). Folders appear before files; both are sorted alphabetically within each level.
 
 **Entry point:** `src/webview/handlers/WorkspaceFileHandler.ts`, function `buildWorkspaceTree`.
 
@@ -157,7 +157,7 @@ The user can run scripts directly from the workspace or from the board. Output i
 
 When running scripts, the behaviour differs depending on what is being run and whether mount is active:
 - **Workspace file (without mount):** The file's source code is read locally and sent directly to the board via the Raw REPL protocol as a string. No file is uploaded to the board.
-- **Workspace file (with mount):** The file is executed via the active mount REPL using paste mode: `exec(open("relative/path").read())`. If the file is outside the mounted folder, the source code is sent as a code block instead.
+- **Workspace file (with mount):** The file is executed via the active mount REPL using paste mode: `exec(open("relative/path").read())`. If the file is outside the mounted folder (this also applies to Run Selection), the code is staged as a temp file (`.mpy_run.py`) in the mounted folder and executed the same way — so only the single exec line is echoed in the terminal and the code bytes never pass through the console input. The temp file is removed on unmount.
 - **Board file:** A short Python snippet is sent via Raw REPL that reads and executes the file from the board's own filesystem: `exec(open(path).read(), globals())`.
 
 **Entry point:** Script execution is in `src/device/operation/RunFileOperation.ts` and `src/device/operation/RunCodeOperation.ts`. The REPL is implemented in `src/device/ReplTerminal.ts`.

@@ -25,9 +25,9 @@ export class BoardActionHandler {
   /**
    * Opens a REPL connection for the selected board.
    */
-  handleConnectRepl(port: string): void {
+  async handleConnectRepl(port: string): Promise<void> {
     try {
-      this._connectionManager.getDevice(port).openRepl();
+      await this._connectionManager.getDevice(port).openRepl();
     } catch (err) {
       vscode.window.showErrorMessage((err as Error).message);
     }

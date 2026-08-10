@@ -3,10 +3,14 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import { Sender } from "../../../webview/WebviewGateway";
 import { removeStubsExtraPath } from "../../../stubs/PylanceConfig";
+import { getPackageList } from "../../../device/operation/packageRegistry";
 
 jest.mock("fs");
 jest.mock("../../../stubs/PylanceConfig", () => ({
   removeStubsExtraPath: jest.fn(),
+}));
+jest.mock("../../../device/operation/packageRegistry", () => ({
+  getPackageList: jest.fn(),
 }));
 
 function makeSend(): jest.MockedFunction<Sender> {
@@ -472,6 +476,45 @@ describe("LibraryHandler", () => {
         args[0]?.includes("Code Support"),
       );
       expect(codeSupportCall).toBeUndefined();
+    });
+  });
+
+  describe("handleGetLibraries()", () => {
+    it("sends the loaded package list", async () => {
+      const libraries = [{ name: "modulino" }];
+      (getPackageList as jest.Mock).mockResolvedValue(libraries);
+      const handler = new LibraryHandler(
+        makeConnectionManager(),
+        makeCodeSupportHandler(),
+      );
+      const send = makeSend();
+
+      await handler.handleGetLibraries(send);
+
+      expect(send).toHaveBeenCalledWith({
+        type: "libraries",
+        value: libraries,
+      });
+    });
+
+    it("sends an error message so the webview can offer a reload", async () => {
+      (getPackageList as jest.Mock).mockRejectedValue(new Error("offline"));
+      const handler = new LibraryHandler(
+        makeConnectionManager(),
+        makeCodeSupportHandler(),
+      );
+      const send = makeSend();
+
+      await handler.handleGetLibraries(send);
+
+      expect(send).toHaveBeenCalledWith({
+        type: "libraries",
+        value: [],
+        error: "offline",
+      });
+      expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
+        expect.stringContaining("offline"),
+      );
     });
   });
 });

@@ -124,9 +124,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     gateway.register("getPorts", (msg, send) =>
       boardActionHandler.handleGetPorts(msg, send),
     );
-    gateway.register("openPort", (msg) =>
-      this._connectionManager.open(msg.port),
-    );
+    gateway.register("openPort", async (msg, send) => {
+      try {
+        await this._connectionManager.open(msg.port);
+      } catch (err) {
+        vscode.window.showErrorMessage((err as Error).message);
+        send({ type: "disconnected", port: msg.port });
+      }
+    });
     gateway.register("closePort", (msg) =>
       this._connectionManager.close(msg.port),
     );

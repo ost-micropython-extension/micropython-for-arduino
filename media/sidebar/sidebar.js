@@ -4,6 +4,7 @@ import {
   getActivePort,
   onTabSwitch,
   onTabClose,
+  closeTab,
 } from "./modules/tabs.js";
 import { FileTree } from "./modules/filetree/genericTree.js";
 import { BoardFilesProvider } from "./modules/filetree/boardFilesProvider.js";
@@ -92,6 +93,10 @@ window.addEventListener("message", (event) => {
 
     case "ports":
       updateAvailablePorts(message.value);
+      break;
+
+    case "disconnected":
+      closeTab(message.port);
       break;
 
     case "activeFileChanged": {
@@ -192,7 +197,7 @@ window.addEventListener("message", (event) => {
       break;
 
     case "libraries":
-      updateLibraries(message.value);
+      updateLibraries(message.value, message.error);
       break;
 
     case "installResult":

@@ -13,6 +13,7 @@ function makeDevice(board: ReturnType<typeof makeBoard>) {
     stateManager: { set: jest.fn() },
     connectedPort: "COM3",
     mountManager: { isActive: false as boolean, sendCodeBlock: jest.fn() },
+    enterScriptRepl: jest.fn().mockResolvedValue(undefined),
     withBoard: jest
       .fn()
       .mockImplementation(async (cb: (b: typeof board) => unknown) =>

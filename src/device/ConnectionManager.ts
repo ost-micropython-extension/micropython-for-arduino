@@ -200,15 +200,26 @@ export class ConnectionManager implements vscode.Disposable {
 
   /**
    * Creates a DeviceManager for board on port, that manages the communication.
+   * Verifies that the board actually responds before completing; throws and
+   * removes the device again if the serial port is in use by another
+   * application or the board does not respond.
    * use getDevice(port) to access board
    */
-  open(port: string): void {
+  async open(port: string): Promise<void> {
     const device = new DeviceManager(
       port,
       this._onStateChanged,
       this.mpremotePath,
     );
     this._devices.set(port, device);
+    try {
+      await device.verifyConnection();
+    } catch {
+      await this.close(port);
+      throw new Error(
+        `Cannot connect to ${port}: the serial port is in use by another application or the board is not responding.`,
+      );
+    }
   }
 
   /**

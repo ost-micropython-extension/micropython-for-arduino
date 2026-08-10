@@ -297,11 +297,12 @@ describe("WorkspaceFileHandler", () => {
       });
     });
 
-    it("filters out ignored directories (node_modules, .git, __pycache__)", async () => {
+    it("filters out ignored directories (node_modules, __pycache__, dist, out)", async () => {
       readdirSync.mockReturnValue([
         makeDirent("node_modules", true),
-        makeDirent(".git", true),
         makeDirent("__pycache__", true),
+        makeDirent("dist", true),
+        makeDirent("out", true),
         makeDirent("main.py", false),
       ]);
 
@@ -313,9 +314,13 @@ describe("WorkspaceFileHandler", () => {
       expect(names).toEqual(["main.py"]);
     });
 
-    it("filters out the .board_cache directory", async () => {
+    it("filters out hidden directories (leading dot)", async () => {
       readdirSync.mockReturnValue([
+        makeDirent(".git", true),
+        makeDirent(".github", true),
+        makeDirent(".vscode", true),
         makeDirent(".board_cache", true),
+        makeDirent(".mpy_codesupport", true),
         makeDirent("main.py", false),
       ]);
 
@@ -323,7 +328,22 @@ describe("WorkspaceFileHandler", () => {
 
       const children = (send as jest.Mock).mock.calls[0][0].nodes[0]
         .children as any[];
-      expect(children.map((c: any) => c.name)).not.toContain(".board_cache");
+      expect(children.map((c: any) => c.name)).toEqual(["main.py"]);
+    });
+
+    it("filters out hidden files (leading dot)", async () => {
+      readdirSync.mockReturnValue([
+        makeDirent(".DS_Store", false),
+        makeDirent(".gitignore", false),
+        makeDirent(".mpy_run.py", false),
+        makeDirent("main.py", false),
+      ]);
+
+      await handler.handleGetWorkspaceFiles(send);
+
+      const children = (send as jest.Mock).mock.calls[0][0].nodes[0]
+        .children as any[];
+      expect(children.map((c: any) => c.name)).toEqual(["main.py"]);
     });
 
     it("sorts folders before files and each group alphabetically", async () => {

@@ -1,15 +1,30 @@
 import { vscode } from "./vscode.js";
 import { getActivePort } from "./tabs.js";
 import { attachTooltip, hideTooltip } from "./tooltip.js";
+import { ACTION_ICONS } from "./filetree/constants.js";
 
 const uninstallButton = document.getElementById("uninstall-btn");
 const installedList = document.getElementById("installed-list");
 
 const librarySearch = document.getElementById("library-search");
 const libraryList = document.getElementById("library-list");
+const libraryRefreshButton = document.getElementById("library-refresh-btn");
 const installButton = document.getElementById("install-btn");
 const customUrlInput = document.getElementById("custom-url-input");
 const customInstallButton = document.getElementById("custom-install-btn");
+
+libraryRefreshButton.innerHTML = ACTION_ICONS.refresh;
+attachTooltip(libraryRefreshButton, "Reload package list");
+
+libraryRefreshButton.addEventListener("click", () => {
+  hideTooltip();
+  emptyListMessage = "Loading packages...";
+  allLibraries = [];
+  librarySearch.disabled = true;
+  librarySearch.value = "";
+  renderLibraryList([]);
+  vscode.postMessage({ type: "getLibraries" });
+});
 
 const collapseToggle = document.getElementById("lib-install-toggle");
 const collapseBody = document.getElementById("lib-install-body");
@@ -24,6 +39,7 @@ let selectedInstalledLib = null;
 let allLibraries = [];
 let selectedLibrary = null;
 let boardBlocked = false;
+let emptyListMessage = "No packages loaded yet.";
 
 uninstallButton.addEventListener("click", () => {
   if (!selectedInstalledLib) {
@@ -121,7 +137,15 @@ export function handleUninstallResult(message) {
   }
 }
 
-export function updateLibraries(libs) {
+export function updateLibraries(libs, error) {
+  if (error) {
+    emptyListMessage = "Failed to load packages. Click reload to try again.";
+    allLibraries = [];
+    librarySearch.disabled = true;
+    renderLibraryList([]);
+    return;
+  }
+  emptyListMessage = "No packages loaded yet.";
   allLibraries = libs;
   librarySearch.disabled = false;
   librarySearch.value = "";
@@ -165,9 +189,7 @@ function renderLibraryList(libs) {
 
   if (!libs || !libs.length) {
     const li = document.createElement("li");
-    li.textContent = allLibraries.length
-      ? "No results."
-      : "No packages loaded yet.";
+    li.textContent = allLibraries.length ? "No results." : emptyListMessage;
     li.classList.add("empty");
     libraryList.appendChild(li);
     return;

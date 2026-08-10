@@ -12,6 +12,7 @@ attachTooltip(addButton, "Connect a Board");
 let _availablePorts = [];
 let _openPorts = [];
 let _activePort = null;
+let _pendingAutoConnect = false;
 const _switchCallbacks = [];
 const _closeCallbacks = [];
 
@@ -35,6 +36,17 @@ export function updateAvailablePorts(ports) {
   const paths = new Set(_availablePorts.map((p) => p.path));
   const disappeared = _openPorts.filter((p) => !paths.has(p));
   disappeared.forEach((port) => _closeTab(port));
+
+  if (_pendingAutoConnect) {
+    _pendingAutoConnect = false;
+    const unconnected = _availablePorts.filter(
+      (p) => !_openPorts.includes(p.path),
+    );
+    if (unconnected.length === 1) {
+      openTab(unconnected[0].path);
+      _closeAddMenu();
+    }
+  }
 }
 
 /**
@@ -50,6 +62,16 @@ export function openTab(port) {
   _renderTabs();
   _switchTo(port);
   vscode.postMessage({ type: "getBoardFiles", port });
+}
+
+/**
+ * Close the tab for the given port, e.g. when the extension reports
+ * that connecting to the port failed.
+ */
+export function closeTab(port) {
+  if (_openPorts.includes(port)) {
+    _closeTab(port);
+  }
 }
 
 /**
@@ -192,14 +214,27 @@ function _rebuildAddMenu() {
     li.appendChild(nameSpan);
     li.appendChild(pathSpan);
     li.addEventListener("click", () => {
-      addMenu.hidden = true;
-      addButton.setAttribute("aria-expanded", "false");
-      addButton.innerText = "+";
-      addButton.className = "tab-add-btn";
       openTab(port.path);
+      _closeAddMenu();
     });
     addMenu.appendChild(li);
   });
+}
+
+/**
+ * Hides the port dropdown and syncs the add button to the current tab
+ * state ("+" once at least one tab is open, "Connect Board" otherwise).
+ */
+function _closeAddMenu() {
+  addMenu.hidden = true;
+  addButton.setAttribute("aria-expanded", "false");
+  if (_openPorts.length > 0) {
+    addButton.innerText = "+";
+    addButton.className = "tab-add-btn";
+  } else {
+    addButton.textContent = "Connect Board";
+    addButton.className = "fullwidth-btn";
+  }
 }
 
 addButton.addEventListener("click", async () => {
@@ -207,6 +242,7 @@ addButton.addEventListener("click", async () => {
   const willOpen = addMenu.hidden;
   addMenu.hidden = !willOpen;
   addButton.setAttribute("aria-expanded", String(!willOpen));
+  _pendingAutoConnect = willOpen;
 
   if (willOpen) {
     vscode.postMessage({ type: "getPorts" });
@@ -219,7 +255,7 @@ disconnectButton.addEventListener("click", async () => {
 
 document.addEventListener("click", (e) => {
   if (!addButton.contains(e.target) && !addMenu.contains(e.target)) {
-    addMenu.hidden = true;
-    addButton.setAttribute("aria-expanded", "false");
+    _closeAddMenu();
+    _pendingAutoConnect = false;
   }
 });

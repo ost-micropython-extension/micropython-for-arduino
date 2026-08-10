@@ -1,6 +1,11 @@
 import * as vscode from "vscode";
 import MicroPython = require("micropython.js");
-import { RAW_REPL_EOT, RAW_REPL_OK } from "../../types/constants";
+import {
+  CTRL_B,
+  getScriptTerminalTitle,
+  RAW_REPL_EOT,
+  RAW_REPL_OK,
+} from "../../types/constants";
 
 interface ScriptTerminal {
   terminal: vscode.Terminal;
@@ -8,6 +13,8 @@ interface ScriptTerminal {
   isOpen: boolean;
   queue: string[];
   inputHandler: ((data: string) => void) | null;
+  replBoard: InstanceType<typeof MicroPython> | null;
+  replDataHandler: ((data: Buffer) => void) | null;
 }
 
 const scriptTerminals = new Map<string, ScriptTerminal>();
@@ -15,6 +22,7 @@ const scriptTerminals = new Map<string, ScriptTerminal>();
 vscode.window.onDidCloseTerminal((terminal) => {
   for (const [port, entry] of scriptTerminals) {
     if (entry.terminal === terminal) {
+      void closeSession(entry);
       entry.writeEmitter.dispose();
       scriptTerminals.delete(port);
       break;
@@ -38,6 +46,8 @@ function getOrCreateTerminal(port: string): ScriptTerminal {
     isOpen: false,
     queue: [],
     inputHandler: null,
+    replBoard: null,
+    replDataHandler: null,
   };
 
   const pty: vscode.Pseudoterminal = {
@@ -50,6 +60,7 @@ function getOrCreateTerminal(port: string): ScriptTerminal {
       entry.queue = [];
     },
     close: () => {
+      void closeSession(entry);
       scriptTerminals.delete(port);
     },
     handleInput: (data: string) => {
@@ -58,7 +69,7 @@ function getOrCreateTerminal(port: string): ScriptTerminal {
   };
 
   entry.terminal = vscode.window.createTerminal({
-    name: `MicroPython (${port})`,
+    name: getScriptTerminalTitle(port),
     pty,
     iconPath: new vscode.ThemeIcon("run"),
     color: new vscode.ThemeColor("terminal.ansiBrightBlue"),
@@ -66,6 +77,131 @@ function getOrCreateTerminal(port: string): ScriptTerminal {
 
   scriptTerminals.set(port, entry);
   return entry;
+}
+
+/**
+ * Detaches and closes the REPL session serial connection of an entry.
+ * Returns whether a session was active.
+ */
+async function closeSession(entry: ScriptTerminal): Promise<boolean> {
+  const board = entry.replBoard;
+  if (!board) {
+    return false;
+  }
+  entry.replBoard = null;
+  if (entry.replDataHandler) {
+    board.serial?.removeListener("data", entry.replDataHandler);
+    entry.replDataHandler = null;
+  }
+  entry.inputHandler = null;
+  // Leave the abandoned >>> prompt line so following output starts clean
+  termWrite(entry, "\r\n");
+  try {
+    await board.close();
+  } catch {
+    // Port may already be gone (e.g. board unplugged) — nothing to clean up
+  }
+  return true;
+}
+
+/**
+ * Attaches an interactive REPL session to the script terminal of the port,
+ * so the user can enter commands based on the executed code. Opens its own
+ * serial connection; the board keeps the state of the last run.
+ * With `createTerminal`, a missing script terminal is created and shown.
+ * Returns whether a session is active afterwards.
+ */
+export async function enterReplSession(
+  port: string,
+  createTerminal: boolean = false,
+): Promise<boolean> {
+  let entry = scriptTerminals.get(port);
+  if (!entry && createTerminal) {
+    entry = getOrCreateTerminal(port);
+    entry.terminal.show(true);
+  }
+  if (!entry) {
+    return false;
+  }
+  if (entry.replBoard) {
+    return true;
+  }
+  const board = new MicroPython();
+  await board.open(port);
+  entry.replBoard = board;
+
+  // Watch for a friendly >>> prompt; the rolling buffer covers chunk splits
+  let promptSeen = false;
+  let probeBuffer = "";
+  const dataHandler = (data: Buffer) => {
+    const text = data.toString();
+    if (!promptSeen) {
+      probeBuffer = (probeBuffer + text).slice(-16);
+      if (probeBuffer.includes(">>>")) {
+        promptSeen = true;
+      }
+    }
+    if (entry.isOpen) {
+      entry.writeEmitter.fire(text);
+    }
+  };
+  entry.replDataHandler = dataHandler;
+  board.serial.resume();
+  board.serial.on("data", dataHandler);
+  entry.inputHandler = (input: string) => {
+    if (board.serial?.isOpen) {
+      board.serial.write(Buffer.from(input));
+    }
+  };
+  // Request a fresh >>> prompt without resetting the interpreter state
+  board.serial.write(Buffer.from("\r"));
+  // A stopped run leaves the board in raw REPL mode, where \r produces no
+  // prompt — exit raw REPL with Ctrl-B when no >>> showed up in time
+  setTimeout(() => {
+    if (!promptSeen && entry.replBoard === board && board.serial?.isOpen) {
+      board.serial.write(Buffer.from(CTRL_B));
+    }
+  }, 400);
+  return true;
+}
+
+/**
+ * Closes the REPL session on the port's script terminal.
+ * Returns whether a session was active.
+ */
+export async function exitReplSession(port: string): Promise<boolean> {
+  const entry = scriptTerminals.get(port);
+  if (!entry) {
+    return false;
+  }
+  return closeSession(entry);
+}
+
+/**
+ * Closes the REPL session and the script terminal itself when a session is
+ * active, mirroring how the manual REPL terminal is closed on disconnect.
+ * A terminal without an active session is left open.
+ */
+export async function disposeReplSessionTerminal(port: string): Promise<void> {
+  const entry = scriptTerminals.get(port);
+  if (!entry?.replBoard) {
+    return;
+  }
+  await closeSession(entry);
+  entry.terminal.dispose();
+}
+
+/**
+ * Writes data (e.g. control characters) to the port's REPL session.
+ * Returns false when no session is active.
+ */
+export function writeToReplSession(port: string, data: string): boolean {
+  const board = scriptTerminals.get(port)?.replBoard;
+  if (!board?.serial?.isOpen) {
+    return false;
+  }
+  board.serial.write(Buffer.from(data));
+  return true;
 }
 
 /**

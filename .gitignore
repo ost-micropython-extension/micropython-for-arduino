@@ -8,3 +8,6 @@ junit-unit.xml
 junit-integration.xml
 CLAUDE.md
 report
+.mpy_codesupport
+.github/copilot-instructions.md
+.vscode/settings.json

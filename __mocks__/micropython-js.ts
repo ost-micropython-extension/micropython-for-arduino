@@ -12,6 +12,7 @@ const mockBoard = {
   open: jest.fn().mockResolvedValue(undefined),
   close: jest.fn().mockResolvedValue(undefined),
   stop: jest.fn().mockResolvedValue(undefined),
+  get_prompt: jest.fn().mockResolvedValue(">>>"),
   reset: jest.fn().mockResolvedValue(undefined),
   run: jest.fn().mockResolvedValue(""),
   execfile: jest.fn().mockResolvedValue("OK\x04\x04>"),

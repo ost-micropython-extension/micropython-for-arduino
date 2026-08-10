@@ -41,6 +41,16 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   color: var(--vscode-foreground);
+  display: flex;
+  align-items: center;
+}
+
+.section-title-icon {
+  width: 15px;
+  height: 15px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  color: var(--vscode-foreground);
 }
 
 /* ============================================================
@@ -286,6 +296,31 @@ body {
   letter-spacing: 0.05em;
 }
 
+.section-sub-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#library-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+#library-refresh-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+  color: var(--vscode-foreground);
+}
+
 #installed-list,
 #library-list {
   max-height: 140px;
@@ -524,6 +559,23 @@ body {
 
 [data-ft-toggle="leaf"]::before {
   display: none;
+}
+
+/* ── File icon ── */
+[data-ft-file-icon] {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vscode-foreground);
+  opacity: 0.9;
+}
+
+[data-ft-file-icon] svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* ── Label ── */

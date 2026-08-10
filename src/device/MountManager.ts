@@ -1,12 +1,24 @@
+import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import {
+  CTRL_A,
+  CTRL_B,
   CTRL_C,
   CTRL_D,
   CTRL_E,
   CTRL_X,
   getMountReplTitle,
+  MOUNT_RUN_FILE,
 } from "../types/constants";
+
+/**
+ * How code is sent into the mount REPL:
+ * - "paste": paste mode — echoes the sent code, works with input()
+ * - "raw": raw REPL mode — no echo, but queues a Ctrl-B that a script
+ *   reading stdin (e.g. via input()) would receive as a stray byte
+ */
+export type MountReplMode = "paste" | "raw";
 
 export class MountManager implements vscode.Disposable {
   private _terminal: vscode.Terminal | undefined;
@@ -108,29 +120,52 @@ export class MountManager implements vscode.Disposable {
       this.sendCodeBlock(code);
       return;
     }
-    this.pasteMode(`exec(open("${relativePath}").read())`);
+    this.replMode(`exec(open("${relativePath}").read())`, "paste");
   }
 
   /**
-   * Executes code via paste mode.
+   * Executes a code block. The code is staged as a temp file in the mounted
+   * folder and executed from there, so only a single exec line appears in
+   * the terminal and the code bytes never pass through the console input
+   * (no non-ASCII escaping needed). The board reads the file through the
+   * mount VFS and runs it from RAM.
    */
   sendCodeBlock(code: string): void {
-    // remove escapeNonAscii when https://github.com/micropython/micropython/pull/18853 is accepted
-    this.pasteMode(escapeNonAscii(code));
+    if (!this._active || !this._terminal) {
+      return;
+    }
+    try {
+      fs.writeFileSync(path.join(this._folder, MOUNT_RUN_FILE), code);
+    } catch (err) {
+      vscode.window.showErrorMessage(
+        `Could not stage code in mounted folder: ${(err as Error).message}`,
+      );
+      return;
+    }
+    this.replMode(`exec(open("${MOUNT_RUN_FILE}").read())`, "paste");
   }
 
-  private pasteMode(code: string): void {
+  /**
+   * Sends code into the mount REPL. Paste mode echoes the code and keeps
+   * stdin clean for input(); raw REPL mode sends without echo and queues a
+   * Ctrl-B that returns the board to the friendly REPL once execution has
+   * finished.
+   */
+  private replMode(code: string, mode: MountReplMode): void {
     if (!this._active || !this._terminal) {
       return;
     }
     this._terminal.sendText(CTRL_C, false); // exit execution / ignore written text
-    this._terminal.sendText(CTRL_E, false); // enter paste mode
+    this._terminal.sendText(mode === "raw" ? CTRL_A : CTRL_E, false);
     setTimeout(() => {
       if (!this._terminal) {
         return;
       }
       this._terminal.sendText(code, false);
       this._terminal.sendText(CTRL_D, false); // execute
+      if (mode === "raw") {
+        this._terminal.sendText(CTRL_B, false); // back to friendly REPL when done
+      }
     }, 50);
   }
 
@@ -190,20 +225,26 @@ export class MountManager implements vscode.Disposable {
       this._terminal.dispose();
       this._terminal = undefined;
     }
+
+    this._removeRunFile();
+  }
+
+  /**
+   * Removes the staged run file from the mounted folder.
+   */
+  private _removeRunFile(): void {
+    if (!this._folder) {
+      return;
+    }
+    try {
+      fs.unlinkSync(path.join(this._folder, MOUNT_RUN_FILE));
+    } catch {
+      // no staged run file present
+    }
   }
 
   async dispose(): Promise<void> {
     this._terminalCloseListener.dispose();
     this._cleanup();
   }
-}
-
-/**
- * Returns ascii string with replaced non ascii signs
- */
-function escapeNonAscii(str: string): string {
-  return str.replace(/[^\x00-\x7F]/g, (ch) => {
-    const code = ch.codePointAt(0)!;
-    return `\\0x${code.toString(16).padStart(2, "0")}`;
-  });
 }
