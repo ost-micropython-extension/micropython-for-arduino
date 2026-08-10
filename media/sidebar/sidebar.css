@@ -41,6 +41,16 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   color: var(--vscode-foreground);
+  display: flex;
+  align-items: center;
+}
+
+.section-title-icon {
+  width: 15px;
+  height: 15px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  color: var(--vscode-foreground);
 }
 
 /* ============================================================
