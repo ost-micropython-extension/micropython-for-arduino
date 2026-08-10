@@ -43,8 +43,8 @@ export function updateAvailablePorts(ports) {
       (p) => !_openPorts.includes(p.path),
     );
     if (unconnected.length === 1) {
-      _closeAddMenu();
       openTab(unconnected[0].path);
+      _closeAddMenu();
     }
   }
 }
@@ -214,21 +214,27 @@ function _rebuildAddMenu() {
     li.appendChild(nameSpan);
     li.appendChild(pathSpan);
     li.addEventListener("click", () => {
-      _closeAddMenu();
       openTab(port.path);
+      _closeAddMenu();
     });
     addMenu.appendChild(li);
   });
 }
 
 /**
- * Hides the port dropdown and collapses the add button to "+".
+ * Hides the port dropdown and syncs the add button to the current tab
+ * state ("+" once at least one tab is open, "Connect Board" otherwise).
  */
 function _closeAddMenu() {
   addMenu.hidden = true;
   addButton.setAttribute("aria-expanded", "false");
-  addButton.innerText = "+";
-  addButton.className = "tab-add-btn";
+  if (_openPorts.length > 0) {
+    addButton.innerText = "+";
+    addButton.className = "tab-add-btn";
+  } else {
+    addButton.textContent = "Connect Board";
+    addButton.className = "fullwidth-btn";
+  }
 }
 
 addButton.addEventListener("click", async () => {
@@ -249,8 +255,7 @@ disconnectButton.addEventListener("click", async () => {
 
 document.addEventListener("click", (e) => {
   if (!addButton.contains(e.target) && !addMenu.contains(e.target)) {
-    addMenu.hidden = true;
-    addButton.setAttribute("aria-expanded", "false");
+    _closeAddMenu();
     _pendingAutoConnect = false;
   }
 });
