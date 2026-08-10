@@ -96,7 +96,11 @@ async function closeSession(entry: ScriptTerminal): Promise<boolean> {
   entry.inputHandler = null;
   // Leave the abandoned >>> prompt line so following output starts clean
   termWrite(entry, "\r\n");
-  await board.close();
+  try {
+    await board.close();
+  } catch {
+    // Port may already be gone (e.g. board unplugged) — nothing to clean up
+  }
   return true;
 }
 
