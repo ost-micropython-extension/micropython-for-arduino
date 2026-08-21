@@ -22,10 +22,14 @@ export class WorkspaceProvider {
    */
   getActions(node, boardActionsDisabled) {
     if (node.root) {
-      return ["newFile", "newFolder", "refresh"];
+      return boardActionsDisabled
+        ? ["newFile", "newFolder", "refresh"]
+        : ["newFile", "newFolder", "mount", "refresh"];
     }
     if (node.type === "folder") {
-      return ["newFile", "newFolder", "rename", "delete"];
+      return boardActionsDisabled
+        ? ["newFile", "newFolder", "rename", "delete"]
+        : ["newFile", "newFolder", "mount", "rename", "delete"];
     }
     return boardActionsDisabled
       ? ["rename", "delete"]
@@ -90,6 +94,17 @@ export class WorkspaceProvider {
   uploadNode(node) {
     vscode.postMessage({
       type: "ws_uploadFile",
+      port: getActivePort(),
+      path: node.id,
+    });
+  }
+
+  /**
+   * Requests to mount this specific folder onto the connected board.
+   */
+  mountNode(node) {
+    vscode.postMessage({
+      type: "ws_mountFolder",
       port: getActivePort(),
       path: node.id,
     });

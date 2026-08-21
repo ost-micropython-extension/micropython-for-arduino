@@ -201,6 +201,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       }
       return wsFileHandler.handleUploadFile(msg.path, msg.port, send);
     });
+    gateway.register("ws_mountFolder", (msg) =>
+      mountHandler.handleActivateFolder(msg.port, msg.path),
+    );
     gateway.register("ws_move", (msg) =>
       wsFileHandler.handleMove(msg.nodePath, msg.targetPath),
     );

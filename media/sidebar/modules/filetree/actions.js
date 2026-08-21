@@ -103,4 +103,18 @@ export function registerBuiltinActions(tree) {
       await provider.runNode(node);
     },
   });
+
+  tree.registerAction({
+    id: "mount",
+    label: "Mount This Folder",
+    handler: async (node, provider) => {
+      if (typeof provider.mountNode !== "function") {
+        console.warn(
+          `[FileTree] provider "${provider.id}" has no mountNode()`,
+        );
+        return;
+      }
+      await provider.mountNode(node);
+    },
+  });
 }
