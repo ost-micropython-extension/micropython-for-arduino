@@ -18,6 +18,7 @@ import {
   fetchUrl,
   findPython,
   selectFolder,
+  reportTransferProgress,
 } from "../../webview/utils";
 
 describe("validateName", () => {
@@ -291,5 +292,87 @@ describe("selectFolder", () => {
     (vscode.window.showQuickPick as jest.Mock).mockResolvedValue(undefined);
 
     await expect(selectFolder("Select folder")).resolves.toBeUndefined();
+  });
+});
+
+describe("reportTransferProgress", () => {
+  function makeProgress() {
+    return { report: jest.fn() };
+  }
+
+  it("reports the full increment on the first call", () => {
+    const progress = makeProgress();
+    const report = reportTransferProgress(progress);
+
+    report(30);
+
+    expect(progress.report).toHaveBeenCalledWith({
+      increment: 30,
+      message: "30%",
+    });
+  });
+
+  it("reports only the delta on subsequent increasing calls", () => {
+    const progress = makeProgress();
+    const report = reportTransferProgress(progress);
+
+    report(30);
+    report(45);
+
+    expect(progress.report).toHaveBeenLastCalledWith({
+      increment: 15,
+      message: "45%",
+    });
+  });
+
+  it("never reports a negative increment when percent goes backwards", () => {
+    const progress = makeProgress();
+    const report = reportTransferProgress(progress);
+
+    report(80);
+    report(50); // out-of-order/decreasing update
+
+    expect(progress.report).toHaveBeenLastCalledWith({
+      increment: 0,
+      message: "50%",
+    });
+  });
+
+  it("keeps the baseline monotonic so a later increase can't push the cumulative total past 100%", () => {
+    const progress = makeProgress();
+    const report = reportTransferProgress(progress);
+
+    report(80); // cumulative so far: 80
+    report(50); // decreasing update, clamped to +0 (cumulative stays 80)
+    report(90); // must add only 10, not 40, to stay at cumulative 90
+
+    expect(progress.report).toHaveBeenLastCalledWith({
+      increment: 10,
+      message: "90%",
+    });
+  });
+
+  it("clamps a percent above 100 to 100", () => {
+    const progress = makeProgress();
+    const report = reportTransferProgress(progress);
+
+    report(140);
+
+    expect(progress.report).toHaveBeenCalledWith({
+      increment: 100,
+      message: "100%",
+    });
+  });
+
+  it("clamps a negative percent to 0", () => {
+    const progress = makeProgress();
+    const report = reportTransferProgress(progress);
+
+    report(-10);
+
+    expect(progress.report).toHaveBeenCalledWith({
+      increment: 0,
+      message: "0%",
+    });
   });
 });

@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import { BoardFileHandler } from "../../../webview/handlers/BoardFileHandler";
+import { TransferCancelledError } from "../../../device/operation/BoardFileOperations";
 
 jest.mock("../../../webview/handlers/BoardFileSystemProvider", () => ({
   BoardFileSystemProvider: {
@@ -400,9 +401,28 @@ describe("BoardFileHandler", () => {
 
       await new BoardFileHandler(cm).handleDownloadFile("/main.py", PORT);
 
-      expect(cm._device.getFileData).toHaveBeenCalledWith("/main.py");
+      expect(cm._device.getFileData).toHaveBeenCalledWith(
+        "/main.py",
+        expect.any(Function),
+        expect.objectContaining({ isCancellationRequested: false }),
+      );
 
       expect(vscode.workspace.fs.writeFile).toHaveBeenCalled();
+    });
+
+    it("shows an info message instead of an error when the download was cancelled", async () => {
+      const cm = makeConnectionManager({
+        getFileData: jest
+          .fn()
+          .mockRejectedValue(new TransferCancelledError("Download cancelled")),
+      });
+
+      await new BoardFileHandler(cm).handleDownloadFile("/main.py", PORT);
+
+      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+        "Download cancelled",
+      );
+      expect(vscode.window.showErrorMessage).not.toHaveBeenCalled();
     });
   });
 });

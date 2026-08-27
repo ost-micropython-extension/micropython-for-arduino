@@ -51,6 +51,7 @@ export class DeviceManager implements vscode.Disposable {
   readonly connectedPort: string;
   readonly repl: ReplTerminal;
   readonly mountManager: MountManager;
+  /** Cancels the current long-running board operation (e.g. a file transfer) on dispose. */
   private _cancelBoard: (() => void) | undefined;
   private _activeBoard: InstanceType<typeof MicroPython> | null = null;
   private _verifying: Promise<void> = Promise.resolve();
@@ -154,14 +155,40 @@ export class DeviceManager implements vscode.Disposable {
       fullPath,
     );
   }
-  async getFileData(path: string) {
-    return await BoardFileOperations.getFileData(this, path);
+  async getFileData(
+    path: string,
+    onProgress?: (percent: number) => void,
+    token?: vscode.CancellationToken,
+  ) {
+    return await BoardFileOperations.getFileData(this, path, onProgress, token);
   }
-  async uploadFile(path: string, name: string): Promise<string | undefined> {
-    return await BoardFileOperations.uploadFile(this, path, name);
+  async uploadFile(
+    path: string,
+    name: string,
+    onProgress?: (percent: number) => void,
+    token?: vscode.CancellationToken,
+  ): Promise<string | undefined> {
+    return await BoardFileOperations.uploadFile(
+      this,
+      path,
+      name,
+      onProgress,
+      token,
+    );
   }
-  async uploadFileOnRemotePath(content: string, remotePath: string) {
-    await BoardFileOperations.uploadContent(this, content, remotePath);
+  async uploadFileOnRemotePath(
+    content: string,
+    remotePath: string,
+    onProgress?: (percent: number) => void,
+    token?: vscode.CancellationToken,
+  ) {
+    await BoardFileOperations.uploadContent(
+      this,
+      content,
+      remotePath,
+      onProgress,
+      token,
+    );
   }
   async move(nodePath: string, newPath: string) {
     await BoardFileOperations.move(this, nodePath, newPath);
@@ -265,6 +292,17 @@ export class DeviceManager implements vscode.Disposable {
         }),
     );
     await this._verifying;
+  }
+
+  /**
+   * Registers a callback that aborts the current long-running board
+   * operation (e.g. a file transfer) once, invoked when the device is
+   * disposed (e.g. on disconnect). Pass `undefined` to clear it once the
+   * operation has finished. Only one operation can hold this at a time,
+   * which matches `withBoard()`'s single-operation guarantee.
+   */
+  setCancelOnDispose(cancel: (() => void) | undefined): void {
+    this._cancelBoard = cancel;
   }
 
   /**

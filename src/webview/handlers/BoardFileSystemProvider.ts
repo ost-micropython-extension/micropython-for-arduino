@@ -3,6 +3,8 @@ import * as path from "path";
 import * as fs from "fs";
 import { ConnectionManager } from "../../device/ConnectionManager";
 import { FOLDER_OPENED_BOARD_FILES } from "../../types/constants";
+import { reportTransferProgress } from "../utils";
+import { TransferCancelledError } from "../../device/operation/BoardFileOperations";
 
 const BOARD_FILES_KEY = "boardCacheFiles";
 
@@ -345,20 +347,26 @@ export class BoardFileSystemProvider
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: `Uploading ${fileName} to board...`,
-          cancellable: false,
+          title: `Uploading ${fileName} to board`,
+          cancellable: true,
         },
-        async () =>
+        async (progress, token) =>
           this._connectionManager
             .getDevice(port)
             .uploadFileOnRemotePath(
-              Buffer.from(content).toString("utf8"),
+              content.toString("utf8"),
               remotePath,
+              reportTransferProgress(progress),
+              token,
             ),
       );
 
       vscode.window.showInformationMessage(`Uploaded ${fileName} to board`);
     } catch (err) {
+      if (err instanceof TransferCancelledError) {
+        vscode.window.showInformationMessage(err.message);
+        return;
+      }
       vscode.window.showErrorMessage(
         `Failed uploading: ${(err as Error).message}`,
       );

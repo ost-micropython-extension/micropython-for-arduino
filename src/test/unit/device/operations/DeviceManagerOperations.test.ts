@@ -135,7 +135,26 @@ describe("DeviceManager - operation forwarding", () => {
     const dm = createDM();
     await dm.getFileData("/a.py");
 
-    expect(BoardFileOperations.getFileData).toHaveBeenCalledWith(dm, "/a.py");
+    expect(BoardFileOperations.getFileData).toHaveBeenCalledWith(
+      dm,
+      "/a.py",
+      undefined,
+      undefined,
+    );
+  });
+
+  it("getFileData forwards the progress callback and cancellation token", async () => {
+    const dm = createDM();
+    const onProgress = jest.fn();
+    const token = { isCancellationRequested: false } as any;
+    await dm.getFileData("/a.py", onProgress, token);
+
+    expect(BoardFileOperations.getFileData).toHaveBeenCalledWith(
+      dm,
+      "/a.py",
+      onProgress,
+      token,
+    );
   });
 
   it("uploadFile forwards correctly", async () => {
@@ -146,6 +165,23 @@ describe("DeviceManager - operation forwarding", () => {
       dm,
       "/local",
       "a.py",
+      undefined,
+      undefined,
+    );
+  });
+
+  it("uploadFile forwards the progress callback and cancellation token", async () => {
+    const dm = createDM();
+    const onProgress = jest.fn();
+    const token = { isCancellationRequested: false } as any;
+    await dm.uploadFile("/local", "a.py", onProgress, token);
+
+    expect(BoardFileOperations.uploadFile).toHaveBeenCalledWith(
+      dm,
+      "/local",
+      "a.py",
+      onProgress,
+      token,
     );
   });
 
@@ -157,6 +193,23 @@ describe("DeviceManager - operation forwarding", () => {
       dm,
       "code",
       "/remote/a.py",
+      undefined,
+      undefined,
+    );
+  });
+
+  it("uploadFileOnRemotePath forwards the progress callback and cancellation token", async () => {
+    const dm = createDM();
+    const onProgress = jest.fn();
+    const token = { isCancellationRequested: false } as any;
+    await dm.uploadFileOnRemotePath("code", "/remote/a.py", onProgress, token);
+
+    expect(BoardFileOperations.uploadContent).toHaveBeenCalledWith(
+      dm,
+      "code",
+      "/remote/a.py",
+      onProgress,
+      token,
     );
   });
 

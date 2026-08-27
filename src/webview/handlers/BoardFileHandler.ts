@@ -3,9 +3,10 @@ import * as path from "path";
 import * as fs from "fs";
 import { Sender } from "../WebviewGateway";
 import { BoardOperationCancelledError } from "../../device/DeviceManager";
-import { validateName, selectFolder } from "../utils";
+import { reportTransferProgress, validateName, selectFolder } from "../utils";
 import { BoardFileSystemProvider } from "./BoardFileSystemProvider";
 import { ConnectionManager } from "../../device/ConnectionManager";
+import { TransferCancelledError } from "../../device/operation/BoardFileOperations";
 
 export class BoardFileHandler {
   constructor(private readonly _connectionManager: ConnectionManager) {}
@@ -299,16 +300,23 @@ export class BoardFileHandler {
       const data = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: `Downloading ${fileName}...`,
-          cancellable: false,
+          title: `Downloading ${fileName}`,
+          cancellable: true,
         },
-        () => this._connectionManager.getDevice(port).getFileData(nodePath),
+        (progress, token) =>
+          this._connectionManager
+            .getDevice(port)
+            .getFileData(nodePath, reportTransferProgress(progress), token),
       );
 
       await vscode.workspace.fs.writeFile(uri, data);
 
       vscode.window.showInformationMessage(`Download finished`);
     } catch (err) {
+      if (err instanceof TransferCancelledError) {
+        vscode.window.showInformationMessage(err.message);
+        return;
+      }
       vscode.window.showErrorMessage(
         `Failed to download "${fileName}": ${(err as Error).message}`,
       );

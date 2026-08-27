@@ -1,4 +1,8 @@
-import { BoardFileOperations } from "../../../../device/operation/BoardFileOperations";
+import * as vscode from "vscode";
+import {
+  BoardFileOperations,
+  TransferCancelledError,
+} from "../../../../device/operation/BoardFileOperations";
 
 // IlsEntry: [name, type, ignored, size]
 const FILE = 0;
@@ -27,6 +31,7 @@ function makeBoard(ilsByPath: Record<string, [string, number][]> = {}) {
 function makeDevice(board: ReturnType<typeof makeBoard>) {
   return {
     stateManager: { set: jest.fn() },
+    setCancelOnDispose: jest.fn(),
     withBoard: jest
       .fn()
       .mockImplementation(async (cb: (b: typeof board) => unknown) =>
@@ -179,7 +184,11 @@ describe("BoardFileOperations.uploadContent()", () => {
 
     // Root path — no ensureDir calls needed
     expect(board.fs_mkdir).not.toHaveBeenCalled();
-    expect(board.fs_save).toHaveBeenCalledWith("x = 1", "/main.py");
+    expect(board.fs_save).toHaveBeenCalledWith(
+      "x = 1",
+      "/main.py",
+      expect.any(Function),
+    );
   });
 
   it("calls fs_mkdir for each segment of a nested path before saving", async () => {
@@ -198,7 +207,11 @@ describe("BoardFileOperations.uploadContent()", () => {
 
     expect(board.fs_mkdir).toHaveBeenCalledWith("/lib");
     expect(board.fs_mkdir).toHaveBeenCalledWith("/lib/sub");
-    expect(board.fs_save).toHaveBeenCalledWith("code", "/lib/sub/sensor.py");
+    expect(board.fs_save).toHaveBeenCalledWith(
+      "code",
+      "/lib/sub/sensor.py",
+      expect.any(Function),
+    );
   });
 
   it("resets fileOpsActive to false after a successful upload", async () => {
@@ -206,6 +219,313 @@ describe("BoardFileOperations.uploadContent()", () => {
     const device = makeDevice(board);
 
     await BoardFileOperations.uploadContent(device as any, "x", "/f.py");
+
+    const calls = (device.stateManager.set as jest.Mock).mock.calls;
+    expect(calls.at(-1)).toEqual([{ fileOpsActive: false }]);
+  });
+
+  it("aborts and clears the cancel-on-dispose hook when cancelled", async () => {
+    const board = makeBoard();
+    const device = makeDevice(board);
+    const source = new (
+      vscode as unknown as {
+        CancellationTokenSource: new () => {
+          token: unknown;
+          cancel: () => void;
+        };
+      }
+    ).CancellationTokenSource();
+
+    board.fs_save.mockImplementation(
+      async (
+        _content: string,
+        _dest: string,
+        dataConsumer?: (p: string) => void,
+      ) => {
+        source.cancel();
+        dataConsumer?.("50%");
+      },
+    );
+
+    await expect(
+      BoardFileOperations.uploadContent(
+        device as any,
+        "x",
+        "/f.py",
+        undefined,
+        source.token as never,
+      ),
+    ).rejects.toThrow("Upload cancelled");
+
+    expect(device.setCancelOnDispose).toHaveBeenLastCalledWith(undefined);
+  });
+});
+
+// ── uploadFile (progress reporting and cancellation) ──────────────────────────
+
+describe("BoardFileOperations.uploadFile()", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("auto-selects the root folder when it is the only destination and reports progress", async () => {
+    const board = makeBoard();
+    const device = makeDevice(board);
+    const onProgress = jest.fn();
+
+    board.fs_put.mockImplementation(
+      async (
+        _src: string,
+        _dest: string,
+        dataConsumer?: (p: string) => void,
+      ) => {
+        dataConsumer?.("0%");
+        dataConsumer?.("50%");
+      },
+    );
+
+    const result = await BoardFileOperations.uploadFile(
+      device as any,
+      "/local/main.py",
+      "main.py",
+      onProgress,
+    );
+
+    expect(result).toBe("/");
+    expect(board.fs_put).toHaveBeenCalledWith(
+      "/local/main.py",
+      "/main.py",
+      expect.any(Function),
+    );
+    expect(onProgress).toHaveBeenCalledWith(0);
+    expect(onProgress).toHaveBeenCalledWith(50);
+  });
+
+  it("aborts the transfer when the cancellation token fires mid-upload", async () => {
+    const board = makeBoard();
+    const device = makeDevice(board);
+    const source = new (
+      vscode as unknown as {
+        CancellationTokenSource: new () => {
+          token: unknown;
+          cancel: () => void;
+        };
+      }
+    ).CancellationTokenSource();
+
+    board.fs_put.mockImplementation(
+      async (
+        _src: string,
+        _dest: string,
+        dataConsumer?: (p: string) => void,
+      ) => {
+        dataConsumer?.("30%"); // first chunk still goes through
+        source.cancel();
+        dataConsumer?.("60%"); // aborted before this chunk
+      },
+    );
+
+    await expect(
+      BoardFileOperations.uploadFile(
+        device as any,
+        "/local/main.py",
+        "main.py",
+        undefined,
+        source.token as never,
+      ),
+    ).rejects.toThrow(TransferCancelledError);
+  });
+
+  it("aborts the transfer when the token was already cancelled before the upload started", async () => {
+    const board = makeBoard();
+    const device = makeDevice(board);
+    const source = new (
+      vscode as unknown as {
+        CancellationTokenSource: new () => {
+          token: unknown;
+          cancel: () => void;
+        };
+      }
+    ).CancellationTokenSource();
+    // Cancelled up front — onCancellationRequested will never fire again,
+    // so this only works if the initial token state is read directly.
+    source.cancel();
+
+    board.fs_put.mockImplementation(
+      async (
+        _src: string,
+        _dest: string,
+        dataConsumer?: (p: string) => void,
+      ) => {
+        dataConsumer?.("10%");
+      },
+    );
+
+    await expect(
+      BoardFileOperations.uploadFile(
+        device as any,
+        "/local/main.py",
+        "main.py",
+        undefined,
+        source.token as never,
+      ),
+    ).rejects.toThrow("Upload cancelled");
+  });
+
+  it("aborts the transfer when the device is disposed mid-upload", async () => {
+    const board = makeBoard();
+    const device = makeDevice(board);
+    let cancelHook: (() => void) | undefined;
+    device.setCancelOnDispose = jest.fn((cb: (() => void) | undefined) => {
+      cancelHook = cb;
+    });
+
+    board.fs_put.mockImplementation(
+      async (
+        _src: string,
+        _dest: string,
+        dataConsumer?: (p: string) => void,
+      ) => {
+        // Simulates DeviceManager.dispose() firing the hook on disconnect
+        cancelHook?.();
+        dataConsumer?.("50%");
+      },
+    );
+
+    await expect(
+      BoardFileOperations.uploadFile(
+        device as any,
+        "/local/main.py",
+        "main.py",
+      ),
+    ).rejects.toThrow("Upload cancelled");
+  });
+
+  it("clears the cancel-on-dispose hook once the upload finishes", async () => {
+    const board = makeBoard();
+    const device = makeDevice(board);
+
+    await BoardFileOperations.uploadFile(
+      device as any,
+      "/local/main.py",
+      "main.py",
+    );
+
+    expect(device.setCancelOnDispose).toHaveBeenLastCalledWith(undefined);
+  });
+});
+
+// ── getFileData (progress reporting and cancellation) ─────────────────────────
+
+describe("BoardFileOperations.getFileData()", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("returns the file content as a Buffer", async () => {
+    const board = makeBoard();
+    board.fs_cat_binary.mockResolvedValue(Buffer.from("hello"));
+    const device = makeDevice(board);
+
+    const result = await BoardFileOperations.getFileData(
+      device as any,
+      "/main.py",
+    );
+
+    expect(board.fs_cat_binary).toHaveBeenCalledWith(
+      "/main.py",
+      expect.any(Function),
+    );
+    expect(result).toEqual(Buffer.from("hello"));
+  });
+
+  it("reports progress via onProgress as chunks arrive", async () => {
+    const board = makeBoard();
+    const device = makeDevice(board);
+    const onProgress = jest.fn();
+
+    board.fs_cat_binary.mockImplementation(
+      async (_path: string, dataConsumer?: (p: string) => void) => {
+        dataConsumer?.("0%");
+        dataConsumer?.("50%");
+        dataConsumer?.("100%");
+        return Buffer.from("data");
+      },
+    );
+
+    await BoardFileOperations.getFileData(
+      device as any,
+      "/main.py",
+      onProgress,
+    );
+
+    expect(onProgress).toHaveBeenCalledWith(0);
+    expect(onProgress).toHaveBeenCalledWith(50);
+    expect(onProgress).toHaveBeenCalledWith(100);
+  });
+
+  it("aborts the transfer when the cancellation token fires mid-download", async () => {
+    const board = makeBoard();
+    const device = makeDevice(board);
+    const source = new (
+      vscode as unknown as {
+        CancellationTokenSource: new () => {
+          token: unknown;
+          cancel: () => void;
+        };
+      }
+    ).CancellationTokenSource();
+
+    board.fs_cat_binary.mockImplementation(
+      async (_path: string, dataConsumer?: (p: string) => void) => {
+        dataConsumer?.("30%");
+        source.cancel();
+        dataConsumer?.("60%");
+        return Buffer.from("data");
+      },
+    );
+
+    await expect(
+      BoardFileOperations.getFileData(
+        device as any,
+        "/main.py",
+        undefined,
+        source.token as never,
+      ),
+    ).rejects.toThrow("Download cancelled");
+  });
+
+  it("aborts the transfer when the device is disposed mid-download", async () => {
+    const board = makeBoard();
+    const device = makeDevice(board);
+    let cancelHook: (() => void) | undefined;
+    device.setCancelOnDispose = jest.fn((cb: (() => void) | undefined) => {
+      cancelHook = cb;
+    });
+
+    board.fs_cat_binary.mockImplementation(
+      async (_path: string, dataConsumer?: (p: string) => void) => {
+        cancelHook?.();
+        dataConsumer?.("50%");
+        return Buffer.from("data");
+      },
+    );
+
+    await expect(
+      BoardFileOperations.getFileData(device as any, "/main.py"),
+    ).rejects.toThrow("Download cancelled");
+  });
+
+  it("clears the cancel-on-dispose hook once the download finishes", async () => {
+    const board = makeBoard();
+    const device = makeDevice(board);
+
+    await BoardFileOperations.getFileData(device as any, "/main.py");
+
+    expect(device.setCancelOnDispose).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it("resets fileOpsActive to false after a successful download", async () => {
+    const board = makeBoard();
+    const device = makeDevice(board);
+
+    await BoardFileOperations.getFileData(device as any, "/main.py");
 
     const calls = (device.stateManager.set as jest.Mock).mock.calls;
     expect(calls.at(-1)).toEqual([{ fileOpsActive: false }]);

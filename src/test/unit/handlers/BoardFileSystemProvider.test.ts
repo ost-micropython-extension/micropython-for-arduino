@@ -14,8 +14,14 @@ jest.mock("vscode", () => {
       setStatusBarMessage: jest.fn(() => ({ dispose: jest.fn() })),
       withProgress: jest
         .fn()
-        .mockImplementation((_opts: unknown, task: () => Promise<unknown>) =>
-          task(),
+        .mockImplementation(
+          (
+            _opts: unknown,
+            task: (
+              progress: { report: (value: unknown) => void },
+              token: { isCancellationRequested: boolean },
+            ) => Promise<unknown>,
+          ) => task({ report: jest.fn() }, { isCancellationRequested: false }),
         ),
       tabGroups: {
         all: [],
@@ -52,6 +58,7 @@ jest.mock("vscode", () => {
 import * as vscode from "vscode";
 import { BoardFileSystemProvider } from "../../../webview/handlers/BoardFileSystemProvider";
 import { FOLDER_OPENED_BOARD_FILES } from "../../../types/constants";
+import { TransferCancelledError } from "../../../device/operation/BoardFileOperations";
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -183,8 +190,42 @@ describe("BoardFileSystemProvider FULL", () => {
 
     await provider.uploadActiveFile(uri, "COM3");
 
-    expect(mockUploadFileOnRemotePath).toHaveBeenCalled();
+    expect(mockUploadFileOnRemotePath).toHaveBeenCalledWith(
+      "content",
+      expect.anything(),
+      expect.any(Function),
+      expect.objectContaining({ isCancellationRequested: false }),
+    );
     expect(vscode.window.showInformationMessage).toHaveBeenCalled();
+  });
+
+  it("shows an info message instead of an error when the upload was cancelled", async () => {
+    provider.onReconnect();
+    const uri = vscode.Uri.file(
+      `/workspace/${FOLDER_OPENED_BOARD_FILES}/test.py`,
+    );
+
+    (provider as any)._boardFiles.add(uri.toString());
+
+    (vscode.workspace as any).textDocuments = [
+      {
+        uri,
+        isDirty: false,
+        save: jest.fn(),
+        getText: jest.fn().mockReturnValue("content"),
+      },
+    ];
+
+    mockUploadFileOnRemotePath.mockRejectedValue(
+      new TransferCancelledError("Upload cancelled"),
+    );
+
+    await provider.uploadActiveFile(uri, "COM3");
+
+    expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+      "Upload cancelled",
+    );
+    expect(vscode.window.showErrorMessage).not.toHaveBeenCalled();
   });
 
   it("upload blocked when disconnected", async () => {

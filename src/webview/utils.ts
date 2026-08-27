@@ -245,6 +245,27 @@ export function validateName(name: string): string | undefined {
 }
 
 /**
+ * Wraps a VS Code progress reporter so it can be fed the *cumulative*
+ * percentage (0-100) reported by micropython.js's upload/download progress
+ * callback, converting it into the incremental updates the progress UI
+ * expects.
+ */
+export function reportTransferProgress(
+  progress: vscode.Progress<{ message?: string; increment?: number }>,
+): (percent: number) => void {
+  let lastPercent = 0;
+  return (percent: number) => {
+    const clamped = Math.min(100, Math.max(0, percent));
+    const increment = Math.max(0, clamped - lastPercent);
+    // Keep lastPercent monotonic — an out-of-order or decreasing percent
+    // must not lower the baseline, or the next increment would double-count
+    // and push VS Code's cumulative progress bar past 100%.
+    lastPercent = Math.max(lastPercent, clamped);
+    progress.report({ increment, message: `${clamped}%` });
+  };
+}
+
+/**
  * Opens a folder picker for selecting a workspace folder.
  */
 export async function selectFolder(

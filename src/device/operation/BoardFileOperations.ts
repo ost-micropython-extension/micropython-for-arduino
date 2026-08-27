@@ -1,20 +1,44 @@
 import { DeviceManager } from "../DeviceManager";
 import * as vscode from "vscode";
 
+/**
+ * Thrown when a file transfer (upload/download) is cancelled — via the
+ * progress notification's cancel button, the device being disposed (e.g.
+ * disconnect), or the user declining a destination/replace prompt. Lets
+ * callers detect cancellation reliably via `instanceof` instead of
+ * string-comparing error messages.
+ */
+export class TransferCancelledError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TransferCancelledError";
+  }
+}
+
 export class BoardFileOperations {
   /**
    * Uploads workspace file to the board.
    * Opens a Quick Pick menu with folders on the board to select target folder.
+   * `onProgress` is called with the cumulative upload percentage (0-100).
+   * The transfer is aborted (throwing "Upload cancelled") when `token` is
+   * cancelled or the device is disposed (e.g. on disconnect) while it runs.
    */
   static async uploadFile(
     device: DeviceManager,
     path: string,
     name: string,
+    onProgress?: (percent: number) => void,
+    token?: vscode.CancellationToken,
   ): Promise<string | undefined> {
     const { stateManager } = device;
 
     stateManager.set({ fileOpsActive: true });
     let targetPath: string | undefined;
+    const cancellation = registerFileTransferCancellation(
+      device,
+      token,
+      "Upload cancelled",
+    );
 
     try {
       await device.withBoard(async (board) => {
@@ -40,7 +64,7 @@ export class BoardFileOperations {
         }
 
         if (!selected) {
-          throw new Error("Upload cancelled");
+          throw new TransferCancelledError("Upload cancelled");
         }
 
         targetPath = selected.value;
@@ -53,34 +77,46 @@ export class BoardFileOperations {
           );
 
           if (answer !== "Replace") {
-            throw new Error("Upload cancelled");
+            throw new TransferCancelledError("Upload cancelled");
           }
         }
 
         await board.fs_put(
           path,
           `${targetPath === "/" ? targetPath : targetPath + "/"}${name}`,
+          cancellation.dataConsumer(onProgress),
         );
       });
       return targetPath;
     } catch (err) {
       throw err;
     } finally {
+      cancellation.dispose();
       stateManager.set({ fileOpsActive: false });
     }
   }
 
   /**
-   * Overwrites or creates content at the path on the board
+   * Overwrites or creates content at the path on the board.
+   * `onProgress` is called with the cumulative upload percentage (0-100).
+   * The transfer is aborted (throwing "Upload cancelled") when `token` is
+   * cancelled or the device is disposed (e.g. on disconnect) while it runs.
    */
   static async uploadContent(
     device: DeviceManager,
     content: string,
     path: string,
+    onProgress?: (percent: number) => void,
+    token?: vscode.CancellationToken,
   ) {
     const { stateManager } = device;
 
     stateManager.set({ fileOpsActive: true });
+    const cancellation = registerFileTransferCancellation(
+      device,
+      token,
+      "Upload cancelled",
+    );
 
     try {
       await device.withBoard(async (board) => {
@@ -89,11 +125,16 @@ export class BoardFileOperations {
           await ensureDir(board, dir);
         }
 
-        await board.fs_save(content, path);
+        await board.fs_save(
+          content,
+          path,
+          cancellation.dataConsumer(onProgress),
+        );
       });
     } catch (err) {
       throw err;
     } finally {
+      cancellation.dispose();
       stateManager.set({ fileOpsActive: false });
     }
   }
@@ -217,23 +258,37 @@ export class BoardFileOperations {
 
   /**
    * Returns content of board file.
+   * `onProgress` is called with the cumulative download percentage (0-100).
+   * The transfer is aborted (throwing "Download cancelled") when `token` is
+   * cancelled or the device is disposed (e.g. on disconnect) while it runs.
    */
   static async getFileData(
     device: DeviceManager,
     path: string,
+    onProgress?: (percent: number) => void,
+    token?: vscode.CancellationToken,
   ): Promise<Uint8Array> {
     const { stateManager } = device;
 
     stateManager.set({ fileOpsActive: true });
+    const cancellation = registerFileTransferCancellation(
+      device,
+      token,
+      "Download cancelled",
+    );
 
     try {
       return await device.withBoard(async (board) => {
-        const raw = await board.fs_cat_binary(path);
+        const raw = await board.fs_cat_binary(
+          path,
+          cancellation.dataConsumer(onProgress),
+        );
         return Buffer.from(raw);
       });
     } catch (err) {
       throw err;
     } finally {
+      cancellation.dispose();
       stateManager.set({ fileOpsActive: false });
     }
   }
@@ -273,6 +328,54 @@ export class BoardFileOperations {
       throw err;
     }
   }
+}
+
+/**
+ * Wires up cancellation for a file transfer (upload or download) from two
+ * sources: the given `CancellationToken` (e.g. the "Cancel" button on the
+ * progress notification) and the device being disposed (e.g. on
+ * disconnect). Returns a `dataConsumer` factory to pass as micropython.js's
+ * per-chunk progress callback, which throws `cancelledMessage` once
+ * cancellation was requested — this is the only point at which an
+ * in-progress fs_put/fs_save/fs_cat_binary can be aborted.
+ *
+ * The progress value itself arrives as either a "NN%" string (fs_save,
+ * fs_cat_binary) or a bare number (fs_put, as of micropython.js v2.1.2 —
+ * inconsistent with its own docs, but harmless since both parse the same).
+ */
+function registerFileTransferCancellation(
+  device: DeviceManager,
+  token: vscode.CancellationToken | undefined,
+  cancelledMessage: string,
+) {
+  // Initialize from the token's current state too — a listener registered
+  // after the token was already cancelled would otherwise never see that
+  // (the cancellation event fires once and doesn't replay for late listeners).
+  let cancelled = token?.isCancellationRequested ?? false;
+  const tokenListener = token?.onCancellationRequested(() => {
+    cancelled = true;
+  });
+  device.setCancelOnDispose(() => {
+    cancelled = true;
+  });
+
+  return {
+    dataConsumer(onProgress?: (percent: number) => void) {
+      return (percentValue: string | number) => {
+        if (cancelled) {
+          throw new TransferCancelledError(cancelledMessage);
+        }
+        const percent = parseInt(String(percentValue), 10);
+        if (!Number.isNaN(percent)) {
+          onProgress?.(percent);
+        }
+      };
+    },
+    dispose() {
+      tokenListener?.dispose();
+      device.setCancelOnDispose(undefined);
+    },
+  };
 }
 
 /** Recursively delete a folder on the board */
@@ -350,8 +453,9 @@ function withTimeout<T>(
   ms: number,
   label: string,
 ): Promise<T> {
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error(`${label} took too long`)), ms),
-  );
-  return Promise.race([promise, timeout]);
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} took too long`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
