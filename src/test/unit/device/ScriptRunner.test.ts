@@ -1,9 +1,13 @@
+import MicroPython = require("micropython.js");
 import {
   extractOutput,
   extractStderr,
+  enterReplSession,
+  exitReplSession,
 } from "../../../device/operation/ScriptRunner";
 
 const EOT = "\x04";
+const MockMicroPython = MicroPython as unknown as jest.Mock;
 
 // ── extractOutput ────────────────────────────────────────────────────────────
 
@@ -82,5 +86,53 @@ describe("extractStderr", () => {
 
   it("returns empty string when only the first EOT is present and nothing follows", () => {
     expect(extractStderr(`OKhello${EOT}`)).toBe("");
+  });
+});
+
+// ── enterReplSession() / exitReplSession() ────────────────────────────────────
+
+describe("enterReplSession() / exitReplSession()", () => {
+  let mockBoard: {
+    open: jest.Mock;
+    close: jest.Mock;
+    setDataCallback: jest.Mock;
+    serial: { isOpen: boolean; resume: jest.Mock; write: jest.Mock };
+  };
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.clearAllMocks();
+
+    mockBoard = {
+      open: jest.fn().mockResolvedValue(undefined),
+      close: jest.fn().mockResolvedValue(undefined),
+      setDataCallback: jest.fn(),
+      serial: {
+        isOpen: true,
+        resume: jest.fn(),
+        write: jest.fn(),
+      },
+    };
+    MockMicroPython.mockImplementation(() => mockBoard);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it("registers a data callback on the board when a session starts", async () => {
+    await enterReplSession("COM_TEST_1", true);
+
+    expect(mockBoard.setDataCallback).toHaveBeenCalledWith(
+      expect.any(Function),
+    );
+  });
+
+  it("clears the data callback on the board when the session ends", async () => {
+    await enterReplSession("COM_TEST_2", true);
+
+    await exitReplSession("COM_TEST_2");
+
+    expect(mockBoard.setDataCallback).toHaveBeenLastCalledWith(null);
   });
 });

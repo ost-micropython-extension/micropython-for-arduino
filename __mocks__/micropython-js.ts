@@ -21,11 +21,10 @@ const mockBoard = {
   fs_put: jest.fn().mockResolvedValue(undefined),
   fs_cat_binary: jest.fn().mockResolvedValue(new Uint8Array()),
   fs_rm: jest.fn().mockResolvedValue(undefined),
+  setDataCallback: jest.fn(),
   serial: {
     isOpen: false,
     resume: jest.fn(),
-    on: jest.fn(),
-    removeListener: jest.fn(),
     write: jest.fn(),
     drain: jest.fn((_cb: (err: null) => void) => _cb(null)),
   },

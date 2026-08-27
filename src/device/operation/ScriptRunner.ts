@@ -90,7 +90,7 @@ async function closeSession(entry: ScriptTerminal): Promise<boolean> {
   }
   entry.replBoard = null;
   if (entry.replDataHandler) {
-    board.serial?.removeListener("data", entry.replDataHandler);
+    board.setDataCallback(null);
     entry.replDataHandler = null;
   }
   entry.inputHandler = null;
@@ -147,7 +147,7 @@ export async function enterReplSession(
   };
   entry.replDataHandler = dataHandler;
   board.serial.resume();
-  board.serial.on("data", dataHandler);
+  board.setDataCallback(dataHandler);
   entry.inputHandler = (input: string) => {
     if (board.serial?.isOpen) {
       board.serial.write(Buffer.from(input));

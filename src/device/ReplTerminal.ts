@@ -6,7 +6,6 @@ export class ReplTerminal implements vscode.Disposable {
   private _board: InstanceType<typeof MicroPython> | undefined;
   private _terminal: vscode.Terminal | undefined;
   private _writeEmitter: vscode.EventEmitter<string> | undefined;
-  private _dataHandler: ((data: Buffer) => void) | undefined;
   private readonly _closeListener: vscode.Disposable;
 
   constructor() {
@@ -44,14 +43,12 @@ export class ReplTerminal implements vscode.Disposable {
     const writeEmitter = new vscode.EventEmitter<string>();
     this._writeEmitter = writeEmitter;
 
-    // Forward incoming serial data to the pseudo-terminal
-    this._dataHandler = (data: Buffer) => {
-      writeEmitter.fire(data.toString());
-    };
-
     // Switch serial to flowing mode so data events fire continuously
     board.serial.resume();
-    board.serial.on("data", this._dataHandler);
+    // Forward incoming serial data to the pseudo-terminal
+    board.setDataCallback((data: Buffer) => {
+      writeEmitter.fire(data.toString());
+    });
 
     const pty: vscode.Pseudoterminal = {
       onDidWrite: writeEmitter.event,
@@ -102,10 +99,7 @@ export class ReplTerminal implements vscode.Disposable {
 
   private _disposeBoard(): void {
     if (this._board) {
-      if (this._dataHandler) {
-        this._board.serial?.removeListener("data", this._dataHandler);
-        this._dataHandler = undefined;
-      }
+      this._board.setDataCallback(null);
       this._board.close(); // async – fire and forget, port released shortly after
       this._board = undefined;
     }
