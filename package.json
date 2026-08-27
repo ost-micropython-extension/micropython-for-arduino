@@ -112,7 +112,7 @@
     "typescript-eslint": "^8.54.0"
   },
   "dependencies": {
-    "micropython.js": "github:arduino/micropython.js",
+    "micropython.js": "github:arduino/micropython.js#v2.1.2",
     "upy-package": "github:arduino/upy-package"
   }
 }
