@@ -65,6 +65,15 @@ declare module "micropython.js" {
     /** Send Ctrl-C/Ctrl-B and wait for interactive >>> prompt */
     get_prompt(): Promise<string>;
 
+    /**
+     * Registers a callback that receives raw bytes from the board: idle
+     * passthrough (no library operation in progress, e.g. interactive REPL
+     * output) and active passthrough during run()/get_prompt(). Only one
+     * callback is stored per Board instance — a new call replaces it. Pass
+     * `null` to remove it.
+     */
+    setDataCallback(fn: ((data: Buffer) => void) | null): void;
+
     /** List files on the board with type/size info */
     fs_ils(folderPath?: string): Promise<FileEntry[]>;
 

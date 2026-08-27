@@ -7,13 +7,12 @@ const MockMicroPython = MicroPython as unknown as jest.Mock;
 let mockSerial: {
   isOpen: boolean;
   resume: jest.Mock;
-  on: jest.Mock;
-  removeListener: jest.Mock;
   write: jest.Mock;
 };
 let mockBoard: {
   open: jest.Mock;
   close: jest.Mock;
+  setDataCallback: jest.Mock;
   serial: typeof mockSerial;
 };
 let mockTerminal: { show: jest.Mock; dispose: jest.Mock };
@@ -25,14 +24,13 @@ beforeEach(() => {
   mockSerial = {
     isOpen: false,
     resume: jest.fn(),
-    on: jest.fn(),
-    removeListener: jest.fn(),
     write: jest.fn(),
   };
 
   mockBoard = {
     open: jest.fn().mockResolvedValue(undefined),
     close: jest.fn().mockResolvedValue(undefined),
+    setDataCallback: jest.fn(),
     serial: mockSerial,
   };
 
@@ -80,10 +78,12 @@ describe("ReplTerminal", () => {
       expect(mockSerial.resume).toHaveBeenCalled();
     });
 
-    it("registers a data listener on the serial port", async () => {
+    it("registers a data callback on the board", async () => {
       const repl = new ReplTerminal();
       await repl.open("COM3");
-      expect(mockSerial.on).toHaveBeenCalledWith("data", expect.any(Function));
+      expect(mockBoard.setDataCallback).toHaveBeenCalledWith(
+        expect.any(Function),
+      );
     });
 
     it("creates a terminal with the port name in the title", async () => {
@@ -189,14 +189,11 @@ describe("ReplTerminal", () => {
       expect(mockBoard.close).toHaveBeenCalled();
     });
 
-    it("removes the data listener from the serial port", async () => {
+    it("clears the data callback on the board", async () => {
       const repl = new ReplTerminal();
       await repl.open("COM3");
       repl.close();
-      expect(mockSerial.removeListener).toHaveBeenCalledWith(
-        "data",
-        expect.any(Function),
-      );
+      expect(mockBoard.setDataCallback).toHaveBeenLastCalledWith(null);
     });
 
     it("is safe to call when not open", () => {
