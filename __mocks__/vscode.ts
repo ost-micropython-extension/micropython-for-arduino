@@ -34,6 +34,25 @@ export class EventEmitter<T> {
   }
 }
 
+// ── CancellationTokenSource ───────────────────────────────────────────────────
+
+export class CancellationTokenSource {
+  private readonly _emitter = new EventEmitter<void>();
+  readonly token = {
+    isCancellationRequested: false,
+    onCancellationRequested: this._emitter.event,
+  };
+
+  cancel(): void {
+    this.token.isCancellationRequested = true;
+    this._emitter.fire();
+  }
+
+  dispose(): void {
+    this._emitter.dispose();
+  }
+}
+
 // ── Disposable ────────────────────────────────────────────────────────────────
 
 export class Disposable {
@@ -95,8 +114,14 @@ export const window = {
 
   withProgress: jest
     .fn()
-    .mockImplementation((_options: unknown, task: () => Promise<unknown>) =>
-      task(),
+    .mockImplementation(
+      (
+        _options: unknown,
+        task: (
+          progress: { report: (value: unknown) => void },
+          token: InstanceType<typeof CancellationTokenSource>["token"],
+        ) => Promise<unknown>,
+      ) => task({ report: jest.fn() }, new CancellationTokenSource().token),
     ),
 
   registerWebviewViewProvider: jest

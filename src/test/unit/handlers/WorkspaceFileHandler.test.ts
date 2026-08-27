@@ -42,8 +42,14 @@ jest.mock("vscode", () => {
       showInformationMessage,
       withProgress: jest
         .fn()
-        .mockImplementation((_opts: unknown, task: () => Promise<unknown>) =>
-          task(),
+        .mockImplementation(
+          (
+            _opts: unknown,
+            task: (
+              progress: { report: (value: unknown) => void },
+              token: { isCancellationRequested: boolean },
+            ) => Promise<unknown>,
+          ) => task({ report: jest.fn() }, { isCancellationRequested: false }),
         ),
       tabGroups: {
         all: [],
@@ -204,11 +210,20 @@ describe("WorkspaceFileHandler", () => {
 
     await handler.handleUploadFile("/file.txt", "COM3", send);
 
-    // ensure upload was called correctly
-    expect(uploadFile).toHaveBeenCalledWith("/file.txt", "file.txt");
+    // ensure upload was called correctly, with a progress callback and
+    // cancellation token forwarded from withProgress
+    expect(uploadFile).toHaveBeenCalledWith(
+      "/file.txt",
+      "file.txt",
+      expect.any(Function),
+      expect.objectContaining({ isCancellationRequested: false }),
+    );
 
-    // ensure withProgress executed upload
-    expect(vscode.window.withProgress).toHaveBeenCalled();
+    // ensure withProgress executed upload, cancellably
+    expect(vscode.window.withProgress).toHaveBeenCalledWith(
+      expect.objectContaining({ cancellable: true }),
+      expect.any(Function),
+    );
 
     // ensure success message
     expect(mocks.showInformationMessage).toHaveBeenCalledWith(
@@ -262,6 +277,27 @@ describe("WorkspaceFileHandler", () => {
     await handler.handleUploadFile("/file.txt", "COM3", send);
 
     expect(mocks.showErrorMessage).toHaveBeenCalledWith("Upload failed: fail");
+  });
+
+  it("shows an info message instead of an error when the upload was cancelled", async () => {
+    const uploadFile = jest
+      .fn()
+      .mockRejectedValue(new Error("Upload cancelled"));
+
+    const mockCM = {
+      getDevice: jest.fn().mockReturnValue({
+        uploadFile,
+      }),
+    } as any;
+
+    handler = new WorkspaceFileHandler(mockCM);
+
+    await handler.handleUploadFile("/file.txt", "COM3", send);
+
+    expect(mocks.showInformationMessage).toHaveBeenCalledWith(
+      "Upload cancelled",
+    );
+    expect(mocks.showErrorMessage).not.toHaveBeenCalled();
   });
 
   // ── buildWorkspaceTree (via handleGetWorkspaceFiles) ────────────────────────

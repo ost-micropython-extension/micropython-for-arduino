@@ -71,34 +71,55 @@ declare module "micropython.js" {
     /** Read a text file from the board */
     fs_cat(filePath: string): Promise<string>;
 
-    /** Read a binary file from the board */
-    fs_cat_binary(filePath: string): Promise<Uint8Array>;
+    /**
+     * Read a binary file from the board.
+     * `data_consumer` is called with '0%' and '100%', plus percentages in
+     * between while the file streams in (e.g. '1%'..'99%').
+     */
+    fs_cat_binary(
+      filePath: string,
+      data_consumer?: DataConsumer,
+    ): Promise<Buffer>;
 
-    /** Upload a local file to the board */
+    /**
+     * Upload a local file to the board. Checks available flash storage
+     * first and throws (INSUFFICIENT_SPACE) if it won't fit; cleans up the
+     * partial destination file if the transfer is aborted mid-way (e.g. by
+     * `data_consumer` throwing to cancel).
+     * `data_consumer` is called with a cumulative percentage per chunk —
+     * note: as of v2.1.2 this is a bare number, not a "NN%" string (unlike
+     * fs_save/fs_cat_binary); parseInt() tolerates either.
+     */
     fs_put(
       src: string,
       dest: string,
-      data_consumer?: DataConsumer,
-    ): Promise<string>;
+      data_consumer?: (percent: number | string) => void,
+    ): Promise<void>;
 
-    /** Save a string as a file on the board */
+    /**
+     * Save a string as a file on the board. Same space-check/cleanup and
+     * progress behavior as fs_put, but `data_consumer` receives "NN%" strings.
+     */
     fs_save(
       content: string,
       dest: string,
       data_consumer?: DataConsumer,
-    ): Promise<string>;
+    ): Promise<void>;
 
-    /** Delete a file from the board */
-    fs_rm(filePath: string): Promise<string>;
+    /** Delete a file from the board. Throws (BOARD_ERROR) on failure. */
+    fs_rm(filePath: string): Promise<void>;
 
-    /** Create a directory on the board */
-    fs_mkdir(filePath: string): Promise<string>;
+    /** Create a directory on the board. Throws (BOARD_ERROR) on failure. */
+    fs_mkdir(filePath: string): Promise<void>;
 
-    /** Remove an (empty) directory from the board */
-    fs_rmdir(filePath: string): Promise<string>;
+    /**
+     * Remove an (empty) directory from the board.
+     * Throws (BOARD_ERROR) on failure, e.g. if not empty.
+     */
+    fs_rmdir(filePath: string): Promise<void>;
 
-    /** Rename a file on the board */
-    fs_rename(oldPath: string, newPath: string): Promise<string>;
+    /** Rename a file on the board. Throws (BOARD_ERROR) on failure. */
+    fs_rename(oldPath: string, newPath: string): Promise<void>;
   }
 
   export = Board;

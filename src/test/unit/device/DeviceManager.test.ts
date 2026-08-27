@@ -135,4 +135,32 @@ describe("DeviceManager", () => {
       expect(dm.repl.close).toHaveBeenCalled();
     });
   });
+
+  describe("setCancelOnDispose()", () => {
+    it("invokes the registered callback once on dispose", async () => {
+      const dm = new DeviceManager("COM3", jest.fn());
+      const cancel = jest.fn();
+      dm.setCancelOnDispose(cancel);
+
+      await dm.dispose();
+
+      expect(cancel).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not throw on dispose when no callback is registered", async () => {
+      const dm = new DeviceManager("COM3", jest.fn());
+      await expect(dm.dispose()).resolves.toBeUndefined();
+    });
+
+    it("clearing the callback with undefined stops it from firing on dispose", async () => {
+      const dm = new DeviceManager("COM3", jest.fn());
+      const cancel = jest.fn();
+      dm.setCancelOnDispose(cancel);
+      dm.setCancelOnDispose(undefined);
+
+      await dm.dispose();
+
+      expect(cancel).not.toHaveBeenCalled();
+    });
+  });
 });
