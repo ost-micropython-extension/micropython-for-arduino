@@ -1,6 +1,9 @@
 import { DeviceManager } from "../DeviceManager";
 import * as vscode from "vscode";
 
+/** ilistdir() entry type for a directory (files are 0x8000). */
+const DIR_TYPE = 0x4000;
+
 /**
  * Thrown when a file transfer (upload/download) is cancelled — via the
  * progress notification's cancel button, the device being disposed (e.g.
@@ -309,7 +312,8 @@ export class BoardFileOperations {
           throw new Error("could not read name of new Path");
         }
         const dir = newPath.split("/").slice(0, -1).join("/") || "/";
-        if (await checkBoardPathExists(board, dir, newName)) {
+        const existingType = await boardEntryType(board, dir, newName);
+        if (existingType !== undefined) {
           const answer = await vscode.window.showWarningMessage(
             `"${newName}" already exists in ${dir}`,
             { modal: true, detail: "Do you want to replace it?" },
@@ -319,13 +323,18 @@ export class BoardFileOperations {
           if (answer !== "Replace") {
             throw new Error("cancelled");
           }
-          await deleteBoardPath(board, newPath);
+          if (existingType === DIR_TYPE) {
+            await deleteBoardPath(board, newPath);
+          } else {
+            await board.fs_rm(newPath);
+          }
         }
         await board.fs_rename(path, newPath);
       });
     } catch (err) {
-      stateManager.set({ fileOpsActive: false });
       throw err;
+    } finally {
+      stateManager.set({ fileOpsActive: false });
     }
   }
 }
@@ -380,12 +389,12 @@ function registerFileTransferCancellation(
 
 /** Recursively delete a folder on the board */
 async function deleteBoardPath(board: any, targetPath: string): Promise<void> {
-  const entries = await board
-    .fs_ils(targetPath)
-    .catch(() => null as null | any[]);
+  // Tolerate fs_ils() failing (e.g. the folder is already gone) by treating
+  // it as having no children, rather than crashing the for-of below on null.
+  const entries = await board.fs_ils(targetPath).catch(() => [] as any[]);
   for (const [name, type] of entries) {
     const childPath = `${targetPath}/${name}`;
-    if (type === 0x4000) {
+    if (type === DIR_TYPE) {
       await deleteBoardPath(board, childPath);
     } else {
       await board.fs_rm(childPath);
@@ -401,6 +410,22 @@ async function checkBoardPathExists(
 ): Promise<boolean> {
   const entries = await board.fs_ils(parentDir);
   return entries.some(([entryName]: [string]) => entryName === name);
+}
+
+/**
+ * Returns the ilistdir() type of `name` inside `parentDir` (DIR_TYPE for a
+ * folder, something else for a file), or undefined if it does not exist.
+ * Used so callers can tell whether an existing path to be replaced is a
+ * file or a folder before deciding how to remove it.
+ */
+async function boardEntryType(
+  board: any,
+  parentDir: string,
+  name: string,
+): Promise<number | undefined> {
+  const entries = await board.fs_ils(parentDir);
+  const entry = entries.find(([entryName]: [string]) => entryName === name);
+  return entry?.[1];
 }
 
 /** Creates directory if it does not exist */
@@ -433,7 +458,7 @@ async function buildBoardTree(
   }
 
   for (const [name, type, ,] of entries as any) {
-    const isDir = type === 0x4000;
+    const isDir = type === DIR_TYPE;
     const fullPath = dirPath === "/" ? `/${name}` : `${dirPath}/${name}`;
 
     if (isDir) {

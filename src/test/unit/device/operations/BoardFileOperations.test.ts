@@ -144,6 +144,73 @@ describe("BoardFileOperations.rename()", () => {
   });
 });
 
+// ── move ──────────────────────────────────────────────────────────────────────
+
+describe("BoardFileOperations.move()", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("calls fs_rename and resets fileOpsActive to false after a successful move", async () => {
+    const board = makeBoard({ "/lib": [] }); // target does not exist yet
+    const device = makeDevice(board);
+
+    await BoardFileOperations.move(device as any, "/main.py", "/lib/main.py");
+
+    expect(board.fs_rename).toHaveBeenCalledWith("/main.py", "/lib/main.py");
+    const calls = (device.stateManager.set as jest.Mock).mock.calls;
+    expect(calls.at(-1)).toEqual([{ fileOpsActive: false }]);
+  });
+
+  it("deletes the existing target and renames when the user confirms replace", async () => {
+    const board = makeBoard({
+      "/lib": [["main.py", FILE]],
+    });
+    const device = makeDevice(board);
+    (vscode.window.showWarningMessage as jest.Mock).mockResolvedValue(
+      "Replace",
+    );
+
+    await BoardFileOperations.move(device as any, "/main.py", "/lib/main.py");
+
+    expect(board.fs_rm).toHaveBeenCalledWith("/lib/main.py");
+    expect(board.fs_rename).toHaveBeenCalledWith("/main.py", "/lib/main.py");
+  });
+
+  it("throws and resets fileOpsActive when the user declines to replace", async () => {
+    const board = makeBoard({
+      "/lib": [["main.py", FILE]],
+    });
+    const device = makeDevice(board);
+    (vscode.window.showWarningMessage as jest.Mock).mockResolvedValue(
+      undefined,
+    );
+
+    await expect(
+      BoardFileOperations.move(device as any, "/main.py", "/lib/main.py"),
+    ).rejects.toThrow("cancelled");
+
+    expect(board.fs_rename).not.toHaveBeenCalled();
+    const calls = (device.stateManager.set as jest.Mock).mock.calls;
+    expect(calls.at(-1)).toEqual([{ fileOpsActive: false }]);
+  });
+
+  it("recursively deletes an existing folder target (not fs_rm) before renaming", async () => {
+    const board = makeBoard({
+      "/": [["lib", DIR]],
+      "/lib": [["sensor.py", FILE]],
+    });
+    const device = makeDevice(board);
+    (vscode.window.showWarningMessage as jest.Mock).mockResolvedValue(
+      "Replace",
+    );
+
+    await BoardFileOperations.move(device as any, "/other-lib", "/lib");
+
+    expect(board.fs_rm).toHaveBeenCalledWith("/lib/sensor.py");
+    expect(board.fs_rmdir).toHaveBeenCalledWith("/lib");
+    expect(board.fs_rename).toHaveBeenCalledWith("/other-lib", "/lib");
+  });
+});
+
 // ── delete ────────────────────────────────────────────────────────────────────
 
 describe("BoardFileOperations.delete()", () => {
@@ -167,6 +234,19 @@ describe("BoardFileOperations.delete()", () => {
     await BoardFileOperations.delete(device as any, true, "/lib");
 
     expect(board.fs_rm).toHaveBeenCalledWith("/lib/sensor.py");
+    expect(board.fs_rmdir).toHaveBeenCalledWith("/lib");
+  });
+
+  it("tolerates fs_ils failing while listing a folder's children and still removes it", async () => {
+    const board = makeBoard();
+    board.fs_ils.mockRejectedValueOnce(new Error("folder vanished"));
+    const device = makeDevice(board);
+
+    await expect(
+      BoardFileOperations.delete(device as any, true, "/lib"),
+    ).resolves.toBeUndefined();
+
+    expect(board.fs_rm).not.toHaveBeenCalled();
     expect(board.fs_rmdir).toHaveBeenCalledWith("/lib");
   });
 });
