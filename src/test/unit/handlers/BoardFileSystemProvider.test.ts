@@ -58,6 +58,7 @@ jest.mock("vscode", () => {
 import * as vscode from "vscode";
 import { BoardFileSystemProvider } from "../../../webview/handlers/BoardFileSystemProvider";
 import { FOLDER_OPENED_BOARD_FILES } from "../../../types/constants";
+import { TransferCancelledError } from "../../../device/operation/BoardFileOperations";
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -215,7 +216,9 @@ describe("BoardFileSystemProvider FULL", () => {
       },
     ];
 
-    mockUploadFileOnRemotePath.mockRejectedValue(new Error("Upload cancelled"));
+    mockUploadFileOnRemotePath.mockRejectedValue(
+      new TransferCancelledError("Upload cancelled"),
+    );
 
     await provider.uploadActiveFile(uri, "COM3");
 

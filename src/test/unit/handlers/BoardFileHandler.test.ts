@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import { BoardFileHandler } from "../../../webview/handlers/BoardFileHandler";
+import { TransferCancelledError } from "../../../device/operation/BoardFileOperations";
 
 jest.mock("../../../webview/handlers/BoardFileSystemProvider", () => ({
   BoardFileSystemProvider: {
@@ -413,7 +414,7 @@ describe("BoardFileHandler", () => {
       const cm = makeConnectionManager({
         getFileData: jest
           .fn()
-          .mockRejectedValue(new Error("Download cancelled")),
+          .mockRejectedValue(new TransferCancelledError("Download cancelled")),
       });
 
       await new BoardFileHandler(cm).handleDownloadFile("/main.py", PORT);

@@ -1,6 +1,20 @@
 import { DeviceManager } from "../DeviceManager";
 import * as vscode from "vscode";
 
+/**
+ * Thrown when a file transfer (upload/download) is cancelled — via the
+ * progress notification's cancel button, the device being disposed (e.g.
+ * disconnect), or the user declining a destination/replace prompt. Lets
+ * callers detect cancellation reliably via `instanceof` instead of
+ * string-comparing error messages.
+ */
+export class TransferCancelledError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TransferCancelledError";
+  }
+}
+
 export class BoardFileOperations {
   /**
    * Uploads workspace file to the board.
@@ -50,7 +64,7 @@ export class BoardFileOperations {
         }
 
         if (!selected) {
-          throw new Error("Upload cancelled");
+          throw new TransferCancelledError("Upload cancelled");
         }
 
         targetPath = selected.value;
@@ -63,7 +77,7 @@ export class BoardFileOperations {
           );
 
           if (answer !== "Replace") {
-            throw new Error("Upload cancelled");
+            throw new TransferCancelledError("Upload cancelled");
           }
         }
 
@@ -334,7 +348,10 @@ function registerFileTransferCancellation(
   token: vscode.CancellationToken | undefined,
   cancelledMessage: string,
 ) {
-  let cancelled = false;
+  // Initialize from the token's current state too — a listener registered
+  // after the token was already cancelled would otherwise never see that
+  // (the cancellation event fires once and doesn't replay for late listeners).
+  let cancelled = token?.isCancellationRequested ?? false;
   const tokenListener = token?.onCancellationRequested(() => {
     cancelled = true;
   });
@@ -346,7 +363,7 @@ function registerFileTransferCancellation(
     dataConsumer(onProgress?: (percent: number) => void) {
       return (percentValue: string | number) => {
         if (cancelled) {
-          throw new Error(cancelledMessage);
+          throw new TransferCancelledError(cancelledMessage);
         }
         const percent = parseInt(String(percentValue), 10);
         if (!Number.isNaN(percent)) {

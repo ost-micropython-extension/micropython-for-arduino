@@ -6,6 +6,7 @@ import { BoardOperationCancelledError } from "../../device/DeviceManager";
 import { reportTransferProgress, validateName, selectFolder } from "../utils";
 import { BoardFileSystemProvider } from "./BoardFileSystemProvider";
 import { ConnectionManager } from "../../device/ConnectionManager";
+import { TransferCancelledError } from "../../device/operation/BoardFileOperations";
 
 export class BoardFileHandler {
   constructor(private readonly _connectionManager: ConnectionManager) {}
@@ -312,13 +313,12 @@ export class BoardFileHandler {
 
       vscode.window.showInformationMessage(`Download finished`);
     } catch (err) {
-      const message = (err as Error).message;
-      if (message === "Download cancelled") {
-        vscode.window.showInformationMessage("Download cancelled");
+      if (err instanceof TransferCancelledError) {
+        vscode.window.showInformationMessage(err.message);
         return;
       }
       vscode.window.showErrorMessage(
-        `Failed to download "${fileName}": ${message}`,
+        `Failed to download "${fileName}": ${(err as Error).message}`,
       );
     }
   }

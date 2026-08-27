@@ -255,9 +255,13 @@ export function reportTransferProgress(
 ): (percent: number) => void {
   let lastPercent = 0;
   return (percent: number) => {
-    const increment = Math.max(0, percent - lastPercent);
-    lastPercent = percent;
-    progress.report({ increment, message: `${percent}%` });
+    const clamped = Math.min(100, Math.max(0, percent));
+    const increment = Math.max(0, clamped - lastPercent);
+    // Keep lastPercent monotonic — an out-of-order or decreasing percent
+    // must not lower the baseline, or the next increment would double-count
+    // and push VS Code's cumulative progress bar past 100%.
+    lastPercent = Math.max(lastPercent, clamped);
+    progress.report({ increment, message: `${clamped}%` });
   };
 }
 

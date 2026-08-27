@@ -1,4 +1,5 @@
 import { WorkspaceFileHandler } from "../../../webview/handlers/WorkspaceFileHandler";
+import { TransferCancelledError } from "../../../device/operation/BoardFileOperations";
 
 // ---- MOCK FS ----
 jest.mock("fs", () => ({
@@ -282,7 +283,7 @@ describe("WorkspaceFileHandler", () => {
   it("shows an info message instead of an error when the upload was cancelled", async () => {
     const uploadFile = jest
       .fn()
-      .mockRejectedValue(new Error("Upload cancelled"));
+      .mockRejectedValue(new TransferCancelledError("Upload cancelled"));
 
     const mockCM = {
       getDevice: jest.fn().mockReturnValue({

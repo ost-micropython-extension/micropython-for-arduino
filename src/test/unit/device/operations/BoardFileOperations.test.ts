@@ -1,5 +1,8 @@
 import * as vscode from "vscode";
-import { BoardFileOperations } from "../../../../device/operation/BoardFileOperations";
+import {
+  BoardFileOperations,
+  TransferCancelledError,
+} from "../../../../device/operation/BoardFileOperations";
 
 // IlsEntry: [name, type, ignored, size]
 const FILE = 0;
@@ -317,6 +320,42 @@ describe("BoardFileOperations.uploadFile()", () => {
         dataConsumer?.("30%"); // first chunk still goes through
         source.cancel();
         dataConsumer?.("60%"); // aborted before this chunk
+      },
+    );
+
+    await expect(
+      BoardFileOperations.uploadFile(
+        device as any,
+        "/local/main.py",
+        "main.py",
+        undefined,
+        source.token as never,
+      ),
+    ).rejects.toThrow(TransferCancelledError);
+  });
+
+  it("aborts the transfer when the token was already cancelled before the upload started", async () => {
+    const board = makeBoard();
+    const device = makeDevice(board);
+    const source = new (
+      vscode as unknown as {
+        CancellationTokenSource: new () => {
+          token: unknown;
+          cancel: () => void;
+        };
+      }
+    ).CancellationTokenSource();
+    // Cancelled up front — onCancellationRequested will never fire again,
+    // so this only works if the initial token state is read directly.
+    source.cancel();
+
+    board.fs_put.mockImplementation(
+      async (
+        _src: string,
+        _dest: string,
+        dataConsumer?: (p: string) => void,
+      ) => {
+        dataConsumer?.("10%");
       },
     );
 

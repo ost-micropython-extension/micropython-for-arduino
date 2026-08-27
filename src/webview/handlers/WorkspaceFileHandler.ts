@@ -5,6 +5,7 @@ import { FileNode } from "../../types/messages";
 import { Sender } from "../WebviewGateway";
 import { reportTransferProgress, validateName } from "../utils";
 import { ConnectionManager } from "../../device/ConnectionManager";
+import { TransferCancelledError } from "../../device/operation/BoardFileOperations";
 /**
  * Directories that will not show in workspace tree.
  * Hidden entries (leading dot, e.g. .git, .board_cache, .mpy_codesupport)
@@ -264,12 +265,13 @@ export class WorkspaceFileHandler {
         vscode.window.showInformationMessage(`Upload successful`);
       }
     } catch (err) {
-      const message = (err as Error).message;
-      if (message === "Upload cancelled") {
-        vscode.window.showInformationMessage("Upload cancelled");
+      if (err instanceof TransferCancelledError) {
+        vscode.window.showInformationMessage(err.message);
         return;
       }
-      vscode.window.showErrorMessage(`Upload failed: ${message}`);
+      vscode.window.showErrorMessage(
+        `Upload failed: ${(err as Error).message}`,
+      );
     }
   }
 
