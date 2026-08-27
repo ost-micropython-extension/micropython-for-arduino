@@ -156,6 +156,47 @@ describe("MountHandler", () => {
     });
   });
 
+  describe("handleActivateFolder", () => {
+    it("should activate mount for the given folder without a folder picker", async () => {
+      await handler.handleActivateFolder("COM3", "/test/folder");
+
+      expect(selectFolder).not.toHaveBeenCalled();
+      expect(mockDevice.activateMount).toHaveBeenCalledWith("/test/folder");
+    });
+
+    it("should not show dialog when doNotShowAgain is true", async () => {
+      mockContext.globalState.get.mockReturnValue(true);
+
+      await handler.handleActivateFolder("COM3", "/test/folder");
+
+      expect(vscode.window.showInformationMessage).not.toHaveBeenCalled();
+    });
+
+    it("should show information dialog", async () => {
+      (vscode.window.showInformationMessage as jest.Mock).mockResolvedValue(
+        "Ok",
+      );
+
+      await handler.handleActivateFolder("COM3", "/test/folder");
+
+      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+        "The board now has access to your local directory. Make sure to unmount before closing VS Code.",
+        "Ok",
+        "Don't show again",
+      );
+    });
+
+    it("should show error message when activation fails", async () => {
+      mockDevice.activateMount.mockRejectedValue(new Error("Mount failed"));
+
+      await handler.handleActivateFolder("COM3", "/test/folder");
+
+      expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
+        "Mount failed",
+      );
+    });
+  });
+
   describe("handleDeactivate", () => {
     it("should deactivate mount", async () => {
       await handler.handleDeactivate("COM3");

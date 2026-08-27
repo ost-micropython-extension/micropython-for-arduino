@@ -26,6 +26,7 @@ export type WebviewMessage =
   | { type: "ws_createFile"; folderPath: string }
   | { type: "ws_createFolder"; folderPath: string }
   | { type: "ws_uploadFile"; port: string; path: string }
+  | { type: "ws_mountFolder"; port: string; path: string }
   | { type: "ws_move"; nodePath: string; targetPath: string }
   // Board file actions
   | { type: "getBoardFiles"; port: string }
