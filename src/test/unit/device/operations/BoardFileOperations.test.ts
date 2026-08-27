@@ -236,6 +236,19 @@ describe("BoardFileOperations.delete()", () => {
     expect(board.fs_rm).toHaveBeenCalledWith("/lib/sensor.py");
     expect(board.fs_rmdir).toHaveBeenCalledWith("/lib");
   });
+
+  it("tolerates fs_ils failing while listing a folder's children and still removes it", async () => {
+    const board = makeBoard();
+    board.fs_ils.mockRejectedValueOnce(new Error("folder vanished"));
+    const device = makeDevice(board);
+
+    await expect(
+      BoardFileOperations.delete(device as any, true, "/lib"),
+    ).resolves.toBeUndefined();
+
+    expect(board.fs_rm).not.toHaveBeenCalled();
+    expect(board.fs_rmdir).toHaveBeenCalledWith("/lib");
+  });
 });
 
 // ── uploadContent (tests ensureDir path-splitting logic) ─────────────────────

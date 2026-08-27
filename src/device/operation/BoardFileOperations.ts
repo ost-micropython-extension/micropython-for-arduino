@@ -389,9 +389,9 @@ function registerFileTransferCancellation(
 
 /** Recursively delete a folder on the board */
 async function deleteBoardPath(board: any, targetPath: string): Promise<void> {
-  const entries = await board
-    .fs_ils(targetPath)
-    .catch(() => null as null | any[]);
+  // Tolerate fs_ils() failing (e.g. the folder is already gone) by treating
+  // it as having no children, rather than crashing the for-of below on null.
+  const entries = await board.fs_ils(targetPath).catch(() => [] as any[]);
   for (const [name, type] of entries) {
     const childPath = `${targetPath}/${name}`;
     if (type === DIR_TYPE) {
