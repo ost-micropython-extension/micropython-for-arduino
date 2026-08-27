@@ -1,4 +1,5 @@
 import { attachTooltip, detachTooltip, hideTooltip } from "./tooltip.js";
+import { ACTION_ICONS } from "./filetree/constants.js";
 
 const elementsToHide = document.querySelectorAll(".hidden-when-disconnected");
 const mountTooltips = Array.from(
@@ -120,7 +121,9 @@ export function updateStatus(boardState) {
   softResetButton.disabled = fileOpsActive || running;
 
   // Mount
-  mountButton.textContent = mountActive ? "Unmount" : "Mount Folder";
+  mountButton.innerHTML = mountActive
+    ? `${ACTION_ICONS.unmount} Unmount`
+    : `${ACTION_ICONS.mount} Mount Folder`;
   mountButton.disabled =
     fileOpsActive || running || mountButton.dataset.locked === "true";
 
