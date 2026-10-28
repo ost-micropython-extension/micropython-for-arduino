@@ -38,10 +38,14 @@ export { BoardOperationCancelledError };
 
 /**
  * How long to wait for micropython.js to open the port and finish its
- * raw-REPL handshake. A healthy board needs about a second; the library's
- * own handshake steps give up after 10 s, so anything beyond that is a hang.
+ * raw-REPL handshake. A healthy board needs about a second. The library
+ * gives up on a silent handshake after 10 s and rejects with a specific
+ * error (TIMEOUT, DISCONNECTED, PORT_ERROR); this limit is deliberately
+ * longer so that error wins whenever the library can detect the failure.
+ * It only fires for hangs the library cannot see, such as the OS-level
+ * port open or a board that keeps sending output.
  */
-const OPEN_TIMEOUT_MS = 10_000;
+const OPEN_TIMEOUT_MS = 15_000;
 
 /** How long to wait for the port to close before giving up on it. */
 const CLOSE_TIMEOUT_MS = 3_000;

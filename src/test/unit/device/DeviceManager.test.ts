@@ -176,13 +176,13 @@ describe("DeviceManager", () => {
         expect(mockBoard.close).toHaveBeenCalled();
       });
 
-      it("does not wait longer than 10 seconds for open()", async () => {
+      it("does not wait longer than 15 seconds for open()", async () => {
         mockBoard.open.mockReturnValue(new Promise(() => {}));
         const dm = new DeviceManager("COM3", jest.fn());
         const onSettled = jest.fn();
         dm.withBoard(jest.fn()).catch(onSettled);
 
-        await jest.advanceTimersByTimeAsync(9_900);
+        await jest.advanceTimersByTimeAsync(14_900);
         expect(onSettled).not.toHaveBeenCalled();
 
         await jest.advanceTimersByTimeAsync(200);
