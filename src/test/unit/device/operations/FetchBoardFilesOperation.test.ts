@@ -1,4 +1,5 @@
 import { FetchBoardFilesOperation } from "../../../../device/operation/FetchBoardFilesOperation";
+import { BoardOperationCancelledError } from "../../../../device/errors";
 import { FileNode } from "../../../../types/messages";
 
 // IlsEntry: [name, type, ignored, size]
@@ -21,7 +22,7 @@ function makeBoard(ilsMap: Record<string, IlsEntry[]>) {
 
 function makeDevice(board: ReturnType<typeof makeBoard>) {
   return {
-    stateManager: { set: jest.fn() },
+    stateManager: { set: jest.fn(), get: jest.fn(() => ({ connected: true })) },
     withBoard: jest
       .fn()
       .mockImplementation(async (cb: (b: typeof board) => unknown) =>
@@ -34,6 +35,7 @@ function makeDevice(board: ReturnType<typeof makeBoard>) {
 
 describe("FetchBoardFilesOperation", () => {
   beforeEach(() => jest.clearAllMocks());
+  afterEach(() => jest.useRealTimers());
 
   // ── Root node ───────────────────────────────────────────────────────────────
 
@@ -272,18 +274,128 @@ describe("FetchBoardFilesOperation", () => {
     });
 
     it("resets fileOpsActive to false and re-throws when the board operation fails", async () => {
+      jest.useFakeTimers();
       const failingBoard = {
         fs_ils: jest.fn().mockRejectedValue(new Error("connection lost")),
       };
       const device = makeDevice(failingBoard as any);
 
-      await expect(
+      const result = expect(
         FetchBoardFilesOperation.execute(device as any, "COM3"),
       ).rejects.toThrow("connection lost");
+      await jest.advanceTimersByTimeAsync(1000); // skip the retry pause
+      await result;
 
       expect(device.stateManager.set).toHaveBeenCalledWith({
         fileOpsActive: false,
       });
+    });
+  });
+
+  // ── Retry ───────────────────────────────────────────────────────────────────
+
+  describe("retry after a failed read", () => {
+    const RETRY_DELAY_MS = 750;
+
+    beforeEach(() => jest.useFakeTimers());
+
+    /** withBoard that fails with the given errors, then runs the callback. */
+    function makeFlakyDevice(
+      errors: Error[],
+      board: ReturnType<typeof makeBoard>,
+    ) {
+      const device = makeDevice(board);
+      const remaining = [...errors];
+      device.withBoard.mockImplementation(
+        async (cb: (b: typeof board) => unknown) => {
+          const err = remaining.shift();
+          if (err) {
+            throw err;
+          }
+          return cb(board);
+        },
+      );
+      return device;
+    }
+
+    it("retries once and returns the tree from the second attempt", async () => {
+      const device = makeFlakyDevice(
+        [new Error("read failed")],
+        makeBoard({ "/": [["main.py", FILE, null, 12]] }),
+      );
+
+      const result = FetchBoardFilesOperation.execute(device as any, "COM3");
+      await jest.advanceTimersByTimeAsync(RETRY_DELAY_MS);
+      const [root] = await result;
+
+      expect(device.withBoard).toHaveBeenCalledTimes(2);
+      expect(root.children?.map((c) => c.name)).toEqual(["main.py"]);
+    });
+
+    it("keeps fileOpsActive set between the attempts", async () => {
+      const device = makeFlakyDevice([new Error("read failed")], makeBoard({}));
+
+      const result = FetchBoardFilesOperation.execute(device as any, "COM3");
+      await jest.advanceTimersByTimeAsync(RETRY_DELAY_MS);
+      await result;
+
+      expect(device.stateManager.set).not.toHaveBeenCalledWith({
+        fileOpsActive: false,
+      });
+    });
+
+    it("waits before the second attempt", async () => {
+      const device = makeFlakyDevice([new Error("read failed")], makeBoard({}));
+
+      const result = FetchBoardFilesOperation.execute(device as any, "COM3");
+      await jest.advanceTimersByTimeAsync(RETRY_DELAY_MS - 1);
+      expect(device.withBoard).toHaveBeenCalledTimes(1);
+
+      await jest.advanceTimersByTimeAsync(1);
+      await result;
+      expect(device.withBoard).toHaveBeenCalledTimes(2);
+    });
+
+    it("gives up after the second failure, re-throws the last error and resets fileOpsActive", async () => {
+      const device = makeFlakyDevice(
+        [new Error("first"), new Error("second")],
+        makeBoard({}),
+      );
+
+      const result = expect(
+        FetchBoardFilesOperation.execute(device as any, "COM3"),
+      ).rejects.toThrow("second");
+      await jest.advanceTimersByTimeAsync(RETRY_DELAY_MS);
+      await result;
+
+      expect(device.withBoard).toHaveBeenCalledTimes(2);
+      expect(device.stateManager.set).toHaveBeenLastCalledWith({
+        fileOpsActive: false,
+      });
+    });
+
+    it("does not retry when the board is busy with another operation", async () => {
+      const device = makeFlakyDevice(
+        [new BoardOperationCancelledError()],
+        makeBoard({}),
+      );
+
+      await expect(
+        FetchBoardFilesOperation.execute(device as any, "COM3"),
+      ).rejects.toBeInstanceOf(BoardOperationCancelledError);
+
+      expect(device.withBoard).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not retry after the board was disconnected", async () => {
+      const device = makeFlakyDevice([new Error("read failed")], makeBoard({}));
+      device.stateManager.get.mockReturnValue({ connected: false });
+
+      await expect(
+        FetchBoardFilesOperation.execute(device as any, "COM3"),
+      ).rejects.toThrow("read failed");
+
+      expect(device.withBoard).toHaveBeenCalledTimes(1);
     });
   });
 });

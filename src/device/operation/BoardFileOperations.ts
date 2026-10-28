@@ -1,4 +1,5 @@
 import { DeviceManager } from "../DeviceManager";
+import { withTimeout } from "../withTimeout";
 import * as vscode from "vscode";
 
 /** ilistdir() entry type for a directory (files are 0x8000). */
@@ -471,16 +472,4 @@ async function buildBoardTree(
   }
 
   return nodes;
-}
-
-function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  label: string,
-): Promise<T> {
-  let timer: ReturnType<typeof setTimeout>;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${label} took too long`)), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
