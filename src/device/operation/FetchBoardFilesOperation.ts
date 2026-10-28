@@ -1,5 +1,16 @@
 import { DeviceManager } from "../DeviceManager";
+import { BoardOperationCancelledError } from "../errors";
+import { withTimeout } from "../withTimeout";
 import { FileNode } from "../../types/messages";
+
+/**
+ * A failed read often succeeds on the next try — seen on Windows, where the
+ * first access to a COM port sometimes fails and a manual refresh then works.
+ * One automatic retry saves the user that refresh. Reading the tree changes
+ * nothing on the board, so repeating it is safe.
+ */
+const MAX_ATTEMPTS = 2;
+const RETRY_DELAY_MS = 750;
 
 export class FetchBoardFilesOperation {
   /**
@@ -15,9 +26,7 @@ export class FetchBoardFilesOperation {
 
     let children;
     try {
-      children = await device.withBoard(async (board) => {
-        return buildBoardTree(board, "/");
-      });
+      children = await readTreeWithRetry(device);
     } catch (err) {
       stateManager.set({ fileOpsActive: false });
       throw err;
@@ -35,6 +44,28 @@ export class FetchBoardFilesOperation {
       },
     ];
     return nodes;
+  }
+}
+
+/**
+ * Reads the board file tree, retrying after a failed attempt (see MAX_ATTEMPTS).
+ */
+async function readTreeWithRetry(device: DeviceManager): Promise<FileNode[]> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await device.withBoard((board) => buildBoardTree(board, "/"));
+    } catch (err) {
+      const giveUp =
+        attempt >= MAX_ATTEMPTS ||
+        // A busy board won't be less busy a moment later
+        err instanceof BoardOperationCancelledError ||
+        // The user disconnected in the meantime
+        !device.stateManager.get().connected;
+      if (giveUp) {
+        throw err;
+      }
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+    }
   }
 }
 
@@ -75,21 +106,4 @@ async function buildBoardTree(
     }
     return a.name.localeCompare(b.name);
   });
-}
-
-function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  label: string,
-): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  const timeout = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(
-      () => reject(new Error(`${label} took too long`)),
-      ms,
-    );
-  });
-  return Promise.race([promise, timeout]).finally(() =>
-    clearTimeout(timeoutId),
-  );
 }

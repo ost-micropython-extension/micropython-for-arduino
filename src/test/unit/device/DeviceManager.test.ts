@@ -134,6 +134,105 @@ describe("DeviceManager", () => {
 
       expect(dm.repl.close).toHaveBeenCalled();
     });
+
+    describe("when the board does not behave", () => {
+      it("fails with a clear error instead of hanging when open() never settles", async () => {
+        // micropython.js's open() never settles when its handshake fails
+        mockBoard.open.mockReturnValue(new Promise(() => {}));
+        const dm = new DeviceManager("COM3", jest.fn());
+        const callback = jest.fn();
+
+        const result = expect(dm.withBoard(callback)).rejects.toThrow(
+          "COM3 did not respond",
+        );
+        await jest.runAllTimersAsync();
+        await result;
+
+        expect(callback).not.toHaveBeenCalled();
+      });
+
+      it("releases the board after a hung open() so the next operation can run", async () => {
+        mockBoard.open.mockReturnValueOnce(new Promise(() => {}));
+        const dm = new DeviceManager("COM3", jest.fn());
+
+        const first = dm.withBoard(async () => "first").catch((e: Error) => e);
+        await jest.runAllTimersAsync();
+        await first;
+
+        const second = dm.withBoard(async () => "second");
+        await jest.runAllTimersAsync();
+
+        await expect(second).resolves.toBe("second");
+      });
+
+      it("closes the port after a hung open()", async () => {
+        mockBoard.open.mockReturnValue(new Promise(() => {}));
+        const dm = new DeviceManager("COM3", jest.fn());
+
+        const result = dm.withBoard(jest.fn()).catch((e: Error) => e);
+        await jest.runAllTimersAsync();
+        await result;
+
+        expect(mockBoard.close).toHaveBeenCalled();
+      });
+
+      it("does not wait longer than 10 seconds for open()", async () => {
+        mockBoard.open.mockReturnValue(new Promise(() => {}));
+        const dm = new DeviceManager("COM3", jest.fn());
+        const onSettled = jest.fn();
+        dm.withBoard(jest.fn()).catch(onSettled);
+
+        await jest.advanceTimersByTimeAsync(9_900);
+        expect(onSettled).not.toHaveBeenCalled();
+
+        await jest.advanceTimersByTimeAsync(200);
+        expect(onSettled).toHaveBeenCalled();
+      });
+
+      it("passes through an error from open() unchanged", async () => {
+        mockBoard.open.mockRejectedValue(new Error("Access denied"));
+        const dm = new DeviceManager("COM3", jest.fn());
+
+        const result = expect(dm.withBoard(jest.fn())).rejects.toThrow(
+          "Access denied",
+        );
+        await jest.runAllTimersAsync();
+        await result;
+      });
+
+      it("still returns the result when close() fails", async () => {
+        mockBoard.close.mockRejectedValue(new Error("Port is not open"));
+        const dm = new DeviceManager("COM3", jest.fn());
+
+        const result = dm.withBoard(async () => 42);
+        await jest.runAllTimersAsync();
+
+        await expect(result).resolves.toBe(42);
+      });
+
+      it("keeps the callback's own error when close() fails too", async () => {
+        mockBoard.close.mockRejectedValue(new Error("Port is not open"));
+        const dm = new DeviceManager("COM3", jest.fn());
+
+        const result = expect(
+          dm.withBoard(async () => {
+            throw new Error("listing failed");
+          }),
+        ).rejects.toThrow("listing failed");
+        await jest.runAllTimersAsync();
+        await result;
+      });
+
+      it("does not wait forever for close()", async () => {
+        mockBoard.close.mockReturnValue(new Promise(() => {}));
+        const dm = new DeviceManager("COM3", jest.fn());
+
+        const result = dm.withBoard(async () => "done");
+        await jest.runAllTimersAsync();
+
+        await expect(result).resolves.toBe("done");
+      });
+    });
   });
 
   describe("setCancelOnDispose()", () => {

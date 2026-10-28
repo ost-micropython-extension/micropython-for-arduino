@@ -31,16 +31,20 @@ import {
   getReplTitle,
   getScriptTerminalTitle,
 } from "../types/constants";
+import { BoardOperationCancelledError, TimeoutError } from "./errors";
+import { withTimeout } from "./withTimeout";
+
+export { BoardOperationCancelledError };
 
 /**
- * Error if an something tries to access board, but board is in use of something else by the extension.
+ * How long to wait for micropython.js to open the port and finish its
+ * raw-REPL handshake. A healthy board needs about a second; the library's
+ * own handshake steps give up after 10 s, so anything beyond that is a hang.
  */
-export class BoardOperationCancelledError extends Error {
-  constructor() {
-    super("Board operation cancelled.");
-    this.name = "BoardOperationCancelledError";
-  }
-}
+const OPEN_TIMEOUT_MS = 10_000;
+
+/** How long to wait for the port to close before giving up on it. */
+const CLOSE_TIMEOUT_MS = 3_000;
 
 /**
  * Contains logic to access the board.
@@ -336,13 +340,57 @@ export class DeviceManager implements vscode.Disposable {
     const board = new MicroPython();
     this._activeBoard = board;
     try {
-      await board.open(this.connectedPort);
+      await this._openBoard(board);
       await board.stop(); // Ctrl-C – ensure board is at >>> prompt
       await new Promise((resolve) => setTimeout(resolve, 150));
       return await callback(board);
     } finally {
       this._activeBoard = null;
-      await board.close();
+      await this._closeBoard(board);
+    }
+  }
+
+  /**
+   * Opens the port, but never waits forever. micropython.js runs the
+   * raw-REPL handshake of open() inside a serial callback, so when a
+   * handshake step fails (board resetting, busy or not answering) the
+   * returned promise simply never settles. Without this limit the board
+   * would stay marked as busy and every later operation would be rejected.
+   */
+  private async _openBoard(
+    board: InstanceType<typeof MicroPython>,
+  ): Promise<void> {
+    try {
+      await withTimeout(
+        board.open(this.connectedPort),
+        OPEN_TIMEOUT_MS,
+        `Opening ${this.connectedPort}`,
+      );
+    } catch (err) {
+      if (err instanceof TimeoutError) {
+        throw new Error(
+          `${this.connectedPort} did not respond. The board may be resetting, busy or in use by another application.`,
+        );
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Releases the port. Best effort: a failing or hanging close must not hide
+   * the result of the operation that just ran.
+   */
+  private async _closeBoard(
+    board: InstanceType<typeof MicroPython>,
+  ): Promise<void> {
+    try {
+      await withTimeout(
+        board.close(),
+        CLOSE_TIMEOUT_MS,
+        `Closing ${this.connectedPort}`,
+      );
+    } catch {
+      // The port may already be gone (board reset or unplugged)
     }
   }
 
